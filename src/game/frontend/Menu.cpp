@@ -36,6 +36,12 @@ namespace YimMenu
 		UIManager::AddSubmenu(std::make_shared<Submenus::Settings>());
 		UIManager::AddSubmenu(std::make_shared<Submenus::Debug>());
 
+		// one-time theme migration for installs that still carry the old blue colors
+		FiberPool::Push([] {
+			ScriptMgr::Yield(std::chrono::seconds(5));
+			Submenus::MigrateThemeOnce();
+		});
+
 		Renderer::AddRendererCallBack(
 			[&] {
 				if (!GUI::IsOpen())

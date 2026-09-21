@@ -48,4 +48,5 @@ namespace YimMenu::Submenus
 	void ApplyMenuColors();
 	void ResetToDefaultColors();
 	void DrawColorSettings();
+	void MigrateThemeOnce(); // one-time switch of existing installs to Terminator Red
 }

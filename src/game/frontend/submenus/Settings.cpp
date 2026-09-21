@@ -138,29 +138,32 @@ namespace YimMenu::Submenus
 
     static BoolCommand g_UseInsertForMenuToggle("togglemenukey", "Menu Toggle Key", "Un-Ticked = F5, Ticked = Insert", false);
 
+    // one-time migration flag (persisted with the other commands, never shown in the menu)
+    static BoolCommand g_ThemeMigratedV2("theme_migrated_v2", "Theme Migrated V2", "", false);
+
     // region Color Commands
     static MenuColorCommand _MenuWindowBg("menu_window_bg", "Window Background", "", {0.07f, 0.10f, 0.12f, 0.0f});
     static MenuColorCommand _MenuChildBg("menu_child_bg", "Child Background", "", {0.10f, 0.14f, 0.17f, 0.70f});
     static MenuColorCommand _MenuPopupBg("menu_popup_bg", "Popup Background", "", {0.12f, 0.16f, 0.19f, 0.95f});
     static MenuColorCommand _MenuTextColor("menu_text_color", "Text", "", {1.0f, 0.89f, 0.71f, 1.00f});
     static MenuColorCommand _MenuTextDisabled("menu_text_disabled", "Text Disabled", "", {0.85f, 0.85f, 0.85f, 0.5f});
-    static MenuColorCommand _MenuTextSelectedBg("menu_text_selected_bg", "Text Selected BG", "", {0.80f, 0.10f, 0.10f, 0.5f});
-    static MenuColorCommand _MenuFrameBg("menu_frame_bg", "Frame Background", "", {0.45f, 0.08f, 0.10f, 0.45f});
-    static MenuColorCommand _MenuFrameBgHovered("menu_frame_bg_hovered", "Frame Background Hovered", "", {0.70f, 0.10f, 0.12f, 0.70f});
-    static MenuColorCommand _MenuFrameBgActive("menu_frame_bg_active", "Frame Background Active", "", {0.85f, 0.12f, 0.14f, 0.9f});
-    static MenuColorCommand _MenuBorderColor("menu_border_color", "Border", "", {0.45f, 0.12f, 0.12f, 0.40f});
-    static MenuColorCommand _MenuButton("menu_button", "Button", "", {0.55f, 0.08f, 0.10f, 0.7f});
-    static MenuColorCommand _MenuButtonHovered("menu_button_hovered", "Button Hovered", "", {0.78f, 0.12f, 0.14f, 0.9f});
-    static MenuColorCommand _MenuButtonActive("menu_button_active", "Button Active", "", {0.90f, 0.15f, 0.16f, 1.0f});
+    static MenuColorCommand _MenuTextSelectedBg("menu_text_selected_bg", "Text Selected BG", "", {0.55f, 0.07f, 0.08f, 0.55f});
+    static MenuColorCommand _MenuFrameBg("menu_frame_bg", "Frame Background", "", {0.32f, 0.05f, 0.06f, 0.55f});
+    static MenuColorCommand _MenuFrameBgHovered("menu_frame_bg_hovered", "Frame Background Hovered", "", {0.50f, 0.07f, 0.08f, 0.75f});
+    static MenuColorCommand _MenuFrameBgActive("menu_frame_bg_active", "Frame Background Active", "", {0.62f, 0.09f, 0.10f, 0.9f});
+    static MenuColorCommand _MenuBorderColor("menu_border_color", "Border", "", {0.35f, 0.08f, 0.08f, 0.45f});
+    static MenuColorCommand _MenuButton("menu_button", "Button", "", {0.38f, 0.06f, 0.07f, 0.8f});
+    static MenuColorCommand _MenuButtonHovered("menu_button_hovered", "Button Hovered", "", {0.55f, 0.08f, 0.09f, 0.95f});
+    static MenuColorCommand _MenuButtonActive("menu_button_active", "Button Active", "", {0.68f, 0.10f, 0.11f, 1.0f});
     static MenuColorCommand _MenuTitleBg("menu_title_bg", "Title Background", "", {0.00f, 0.00f, 0.00f, 0.60f});
     static MenuColorCommand _MenuTitleBgActive("menu_title_bg_active", "Title Background Active", "", {0.10f, 0.10f, 0.10f, 0.60f});
     static MenuColorCommand _MenuTitleBgCollapsed("menu_title_bg_collapsed", "Title Background Collapsed", "", {0.00f, 0.00f, 0.00f, 0.60f});
     static MenuColorCommand _MenuTab("menu_tab", "Tab", "", {0.13f, 0.13f, 0.13f, 0.60f});
-    static MenuColorCommand _MenuTabHovered("menu_tab_hovered", "Tab Hovered", "", {0.70f, 0.10f, 0.12f, 0.70f});
-    static MenuColorCommand _MenuTabActive("menu_tab_active", "Tab Active", "", {0.30f, 0.08f, 0.08f, 0.85f});
-    static MenuColorCommand _MenuHeader("menu_header", "Header", "", {0.20f, 0.06f, 0.06f, 0.60f});
-    static MenuColorCommand _MenuHeaderHovered("menu_header_hovered", "Header Hovered", "", {0.70f, 0.10f, 0.12f, 0.80f});
-    static MenuColorCommand _MenuHeaderActive("menu_header_active", "Header Active", "", {0.85f, 0.12f, 0.14f, 0.90f});
+    static MenuColorCommand _MenuTabHovered("menu_tab_hovered", "Tab Hovered", "", {0.50f, 0.07f, 0.08f, 0.75f});
+    static MenuColorCommand _MenuTabActive("menu_tab_active", "Tab Active", "", {0.22f, 0.05f, 0.05f, 0.90f});
+    static MenuColorCommand _MenuHeader("menu_header", "Header", "", {0.14f, 0.04f, 0.04f, 0.65f});
+    static MenuColorCommand _MenuHeaderHovered("menu_header_hovered", "Header Hovered", "", {0.50f, 0.07f, 0.08f, 0.80f});
+    static MenuColorCommand _MenuHeaderActive("menu_header_active", "Header Active", "", {0.62f, 0.09f, 0.10f, 0.90f});
     static MenuColorCommand _MenuPlotLines("menu_plot_lines", "Plot Lines", "", {0.80f, 0.80f, 0.00f, 0.00f});
     static MenuColorCommand _MenuPlotLinesHovered("menu_plot_lines_hovered", "Plot Lines Hovered", "", {1.00f, 0.85f, 0.00f, 1.00f});
     static MenuColorCommand _MenuPlotHistogram("menu_plot_histogram", "Plot Histogram", "", {0.90f, 0.70f, 0.20f, 1.00f});
@@ -169,16 +172,16 @@ namespace YimMenu::Submenus
     static MenuColorCommand _MenuTabUnfocusedActive("menu_tab_unfocused_active", "Tab Unfocused Active", "", {0.13f, 0.13f, 0.13f, 0.80f});
     static MenuColorCommand _MenuMenuBarBg("menu_menubar_bg", "MenuBar Background", "", {0.10f, 0.10f, 0.10f, 0.60f});
     static MenuColorCommand _MenuScrollbarBg("menu_scrollbar_bg", "Scrollbar Background", "", {0.0f, 0.0f, 0.0f, 0.0f});
-    static MenuColorCommand _MenuScrollbarGrab("menu_scrollbar_grab", "Scrollbar Grab", "", {0.45f, 0.08f, 0.10f, 0.7f});
-    static MenuColorCommand _MenuScrollbarGrabHovered("menu_scrollbar_grab_hovered", "Scrollbar Grab Hovered", "", {0.70f, 0.10f, 0.12f, 0.8f});
-    static MenuColorCommand _MenuScrollbarGrabActive("menu_scrollbar_grab_active", "Scrollbar Grab Active", "", {0.85f, 0.12f, 0.14f, 0.9f});
-    static MenuColorCommand _MenuCheckMark("menu_checkmark", "CheckMark", "", {1.0f, 0.25f, 0.25f, 1.00f});
-    static MenuColorCommand _MenuSliderGrab("menu_slider_grab", "Slider Grab", "", {0.45f, 0.08f, 0.10f, 0.8f});
-    static MenuColorCommand _MenuSliderGrabActive("menu_slider_grab_active", "Slider Grab Active", "", {0.85f, 0.12f, 0.14f, 1.0f});
+    static MenuColorCommand _MenuScrollbarGrab("menu_scrollbar_grab", "Scrollbar Grab", "", {0.32f, 0.05f, 0.06f, 0.75f});
+    static MenuColorCommand _MenuScrollbarGrabHovered("menu_scrollbar_grab_hovered", "Scrollbar Grab Hovered", "", {0.50f, 0.07f, 0.08f, 0.8f});
+    static MenuColorCommand _MenuScrollbarGrabActive("menu_scrollbar_grab_active", "Scrollbar Grab Active", "", {0.62f, 0.09f, 0.10f, 0.9f});
+    static MenuColorCommand _MenuCheckMark("menu_checkmark", "CheckMark", "", {0.95f, 0.20f, 0.20f, 1.00f});
+    static MenuColorCommand _MenuSliderGrab("menu_slider_grab", "Slider Grab", "", {0.32f, 0.05f, 0.06f, 0.85f});
+    static MenuColorCommand _MenuSliderGrabActive("menu_slider_grab_active", "Slider Grab Active", "", {0.62f, 0.09f, 0.10f, 1.0f});
     static MenuColorCommand _MenuSeparator("menu_separator", "Separator", "", {0.28f, 0.28f, 0.28f, 0.25f});
-    static MenuColorCommand _MenuResizeGrip("menu_resize_grip", "Resize Grip", "", {0.45f, 0.08f, 0.10f, 0.7f});
-    static MenuColorCommand _MenuResizeGripHovered("menu_resize_grip_hovered", "Resize Grip Hovered", "", {0.70f, 0.10f, 0.12f, 0.8f});
-    static MenuColorCommand _MenuResizeGripActive("menu_resize_grip_active", "Resize Grip Active", "", {0.85f, 0.12f, 0.14f, 0.9f});
+    static MenuColorCommand _MenuResizeGrip("menu_resize_grip", "Resize Grip", "", {0.32f, 0.05f, 0.06f, 0.75f});
+    static MenuColorCommand _MenuResizeGripHovered("menu_resize_grip_hovered", "Resize Grip Hovered", "", {0.50f, 0.07f, 0.08f, 0.8f});
+    static MenuColorCommand _MenuResizeGripActive("menu_resize_grip_active", "Resize Grip Active", "", {0.62f, 0.09f, 0.10f, 0.9f});
     // endregion
 
     void ApplyAggressivePadding()
@@ -231,6 +234,15 @@ namespace YimMenu::Submenus
                 return;
             }
         }
+    }
+
+    void MigrateThemeOnce()
+    {
+        if (g_ThemeMigratedV2.GetState())
+            return;
+
+        ResetToDefaultColors();
+        g_ThemeMigratedV2.SetState(true);
     }
 
     void DrawColorSettings()
