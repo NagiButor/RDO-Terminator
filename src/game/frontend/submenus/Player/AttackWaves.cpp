@@ -1,5 +1,6 @@
 #include "AttackWaves.hpp"
 
+#include "game/backend/ScriptMgr.hpp"
 #include "util/Joaat.hpp"
 
 #include <cmath>
@@ -97,6 +98,30 @@ namespace YimMenu::Features::AttackWaves
         if (!ENTITY::DOES_ENTITY_EXIST(target_handle) || config.models.empty() || config.count <= 0)
             return 0;
 
+        // Pre-request the models the same way IndianAttack does. Ped::Create on
+        // its own only waits ~30 ticks for a model to stream in, which is not
+        // enough for models that were never loaded before (e.g. the knife-wave
+        // Indians) -- such a wave silently spawned 0 peds, the list stayed
+        // empty and a new wave was attempted every tick, which broke the
+        // "next wave only after the last ped of the group dies" flow.
+        for (const char* model_name : config.models)
+        {
+            if (!model_name)
+                continue;
+
+            const Hash model = Joaat(model_name);
+            if (!STREAMING::IS_MODEL_VALID(model) || !STREAMING::IS_MODEL_IN_CDIMAGE(model))
+                continue;
+
+            STREAMING::REQUEST_MODEL(model, false);
+            int tries = 0;
+            while (!STREAMING::HAS_MODEL_LOADED(model) && tries < 100)
+            {
+                ScriptMgr::Yield();
+                ++tries;
+            }
+        }
+
         int spawn_count = 0;
 
         std::uniform_real_distribution<float> angle_dist(0.f, 6.2831853f);
@@ -153,6 +178,17 @@ namespace YimMenu::Features::AttackWaves
 
             spawned.push_back(handle);
             ++spawn_count;
+        }
+
+        // release the model references once the wave is out (same as PedSpawner)
+        for (const char* model_name : config.models)
+        {
+            if (!model_name)
+                continue;
+
+            const Hash model = Joaat(model_name);
+            if (STREAMING::IS_MODEL_VALID(model))
+                STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(model);
         }
 
         return spawn_count;

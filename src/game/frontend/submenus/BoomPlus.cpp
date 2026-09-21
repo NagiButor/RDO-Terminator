@@ -2,8 +2,27 @@
 #include "game/frontend/items/Items.hpp"
 #include "game/features/Features.hpp"
 #include "game/frontend/submenus/Player/NpcAttack.hpp"
+#include "game/rdr/data/PedModels.hpp"
+#include "util/Joaat.hpp"
+
+#include <algorithm>
+#include <cctype>
 
 namespace YimMenu::Submenus {
+    namespace
+    {
+        bool IsPedModelInList(const std::string& model)
+        {
+            return Data::g_PedModels.contains(Joaat(model));
+        }
+
+        std::string ToLowerCopy(std::string value)
+        {
+            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+            return value;
+        }
+    }
+
     std::shared_ptr<Category> BuildBoomPlusMenu() {
         auto menu = std::make_shared<Category>("BoomPlus");
 
@@ -47,9 +66,56 @@ namespace YimMenu::Submenus {
 
         // Configuration for the "Npc Attack" toggle: pick the ped/animal, the amount and where it spawns
         auto npc_attack = std::make_shared<Group>("Npc Attack (config)", 1);
-        npc_attack->AddItem(std::make_shared<InputTextWithHint>("##npcmodel", "model, e.g. A_C_Bear_01 (Tab = autocomplete)",
-            &Features::NpcAttackOptions::ConfiguredModel(), ImGuiInputTextFlags_CallbackCompletion, nullptr, Features::NpcAttackOptions::ModelInputCallback));
         npc_attack->AddItem(std::make_shared<ImGuiItem>([] {
+            // --- model input with a live "closest matches" dropdown, same as World -> Spawner -> Ped ---
+            InputTextWithHint("##npcmodel", "model, e.g. A_C_Bear_01 (click / type to see matches)",
+                &Features::NpcAttackOptions::ConfiguredModel(), ImGuiInputTextFlags_CallbackCompletion,
+                nullptr, Features::NpcAttackOptions::ModelInputCallback)
+                .Draw();
+
+            const bool is_input_active = ImGui::IsItemActive();
+            const std::string buffer   = Features::NpcAttackOptions::ConfiguredModel();
+
+            if (!buffer.empty() && !IsPedModelInList(buffer))
+            {
+                if (is_input_active)
+                    ImGui::OpenPopup("##npc_search_popup");
+            }
+
+            const ImVec2 input_pos = ImGui::GetItemRectMin();
+            const ImVec2 input_size = ImGui::GetItemRectSize();
+
+            float item_height        = ImGui::GetTextLineHeightWithSpacing();
+            float max_dropdown_height = (item_height * 10.0f) + (ImGui::GetStyle().WindowPadding.y * 2.0f);
+
+            ImGui::SetNextWindowPos({input_pos.x, input_pos.y + input_size.y});
+            ImGui::SetNextWindowSize({input_size.x, 0});
+            ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, max_dropdown_height));
+
+            if (ImGui::BeginPopup("##npc_search_popup", ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_ChildWindow))
+            {
+                const std::string buffer_lower = ToLowerCopy(buffer);
+                for (const auto& [hash, model] : Data::g_PedModels)
+                {
+                    if (!model)
+                        continue;
+
+                    std::string model_lower = model;
+                    std::transform(model_lower.begin(), model_lower.end(), model_lower.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+                    if (model_lower.find(buffer_lower) == std::string::npos)
+                        continue;
+
+                    if (ImGui::Selectable(model))
+                    {
+                        Features::NpcAttackOptions::ConfiguredModel() = model;
+                        ImGui::CloseCurrentPopup();
+                    }
+                }
+                if (!is_input_active && !ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
+                    ImGui::CloseCurrentPopup();
+                ImGui::EndPopup();
+            }
+
             ImGui::SliderInt("Count", &Features::NpcAttackOptions::ConfiguredCount(), 1, 20);
             ImGui::SliderFloat("Distance", &Features::NpcAttackOptions::ConfiguredDistance(), 2.f, 150.f, "%.0f m");
 
