@@ -188,7 +188,19 @@ namespace YimMenu::Features::AttackWaves
                 continue;
 
             SetUpAttacker(handle, PED::IS_PED_HUMAN(handle) != 0, config);
-            TASK::TASK_COMBAT_PED(handle, target_handle, 0, 16);
+
+            const bool human = PED::IS_PED_HUMAN(handle) != 0;
+            if (config.use_lasso && human)
+            {
+                // hogtie duty: lasso in hands + lasso task instead of a gunfight
+                WEAPON::GIVE_WEAPON_TO_PED(handle, Joaat("WEAPON_LASSO"), 1, true, false, 0, false, 0.5f, 1.0f, 1, false, 0, false);
+                WEAPON::SET_CURRENT_PED_WEAPON(handle, Joaat("WEAPON_LASSO"), true, 0, false, false);
+                TASK::TASK_LASSO_PED(handle, target_handle);
+            }
+            else
+            {
+                TASK::TASK_COMBAT_PED(handle, target_handle, 0, 16);
+            }
 
             spawned.push_back(handle);
             ++spawn_count;

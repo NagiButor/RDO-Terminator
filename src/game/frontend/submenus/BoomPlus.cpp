@@ -190,6 +190,9 @@ namespace YimMenu::Submenus {
             if (ImGui::Combo("Spawn point", &side, "Around the player\0In front of the player\0Behind the player\0"))
                 Features::NpcAttackOptions::ConfiguredSideIndex() = side;
 
+            ImGui::Checkbox("Lasso target", &Features::NpcAttackOptions::ConfiguredLasso());
+            ImGui::TextDisabled("Humans hogtie with a lasso (also cavalry riders). Animals fight normally.");
+
             if (ImGui::Button("Spawn One NPC", ImVec2(-1, 0)))
                 FiberPool::Push([] {
                     Features::NpcAttackOptions::SpawnSingleNow();

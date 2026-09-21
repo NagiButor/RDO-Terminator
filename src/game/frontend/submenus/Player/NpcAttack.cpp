@@ -34,6 +34,7 @@ namespace YimMenu::Features
         static int s_count    = 3;
         static float s_distance = 25.f;
         static int s_health   = 0;
+        static bool s_lasso   = false;
         static int s_side_index = 0;
 
         // persistent storage for BuildConfig() string views:
@@ -59,6 +60,11 @@ namespace YimMenu::Features
         int& ConfiguredHealth()
         {
             return s_health;
+        }
+
+        bool& ConfiguredLasso()
+        {
+            return s_lasso;
         }
 
         int& ConfiguredSideIndex()
@@ -149,6 +155,7 @@ namespace YimMenu::Features
             config.distance = std::max(1.f, s_distance);
             config.side     = ConfiguredSide();
             config.health   = s_health > 0 ? (float)s_health : 0.f; // 0 = game default
+            config.use_lasso = s_lasso;
             config.move_rate = 1.9f;
             config.accuracy  = 80.f;
             return config;

@@ -5,6 +5,7 @@
 #include "game/backend/Players.hpp"
 #include "game/backend/ScriptMgr.hpp"
 #include "game/frontend/submenus/Player/AttackWaves.hpp"
+#include "game/frontend/submenus/Player/NpcAttack.hpp"
 #include "game/rdr/Ped.hpp"
 #include "game/rdr/Vehicle.hpp"
 #include "util/Joaat.hpp"
@@ -152,7 +153,17 @@ namespace YimMenu::Features
 			SetupFighter(rider_handle, true, kWeapons[weapon_dist(CavalryRng())]);
 
 			rider.SetInMount(horse);
-			TASK::TASK_COMBAT_PED(rider_handle, target_handle, 0, 16);
+
+			if (NpcAttackOptions::ConfiguredLasso())
+			{
+				WEAPON::GIVE_WEAPON_TO_PED(rider_handle, Joaat("WEAPON_LASSO"), 1, true, false, 0, false, 0.5f, 1.0f, 1, false, 0, false);
+				WEAPON::SET_CURRENT_PED_WEAPON(rider_handle, Joaat("WEAPON_LASSO"), true, 0, false, false);
+				TASK::TASK_LASSO_PED(rider_handle, target_handle);
+			}
+			else
+			{
+				TASK::TASK_COMBAT_PED(rider_handle, target_handle, 0, 16);
+			}
 
 			cavalry_index.push_back(horse_handle);
 			cavalry_index.push_back(rider_handle);
