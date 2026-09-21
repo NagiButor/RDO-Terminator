@@ -71,13 +71,18 @@ namespace YimMenu
 					ImGuiWindowFlags_NoSavedSettings);
 				if (window_visible)
 				{
-					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
-					ImGui::Text("Mi5hlen Menu");
+				if (ImTextureID logo = Renderer::GetLogoTexture())
+				{
+					ImGui::Image(logo, ImVec2(30, 30));
 					ImGui::SameLine();
-					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.35f, 0.80f, 1.0f, 1.0f));
-					ImGui::Text("| Telegram: @Mi5hlen");
-					ImGui::PopStyleColor();
-					ImGui::PopStyleColor(); 
+				}
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
+				ImGui::Text("RDO Terminator");
+				ImGui::SameLine();
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.25f, 0.25f, 1.0f));
+				ImGui::Text("| by Mi5hlen");
+				ImGui::PopStyleColor();
+				ImGui::PopStyleColor(); 
 
 					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.50f, 1.0f));
 					if (ImGui::Button("Terminate", ImVec2(80, 0)))

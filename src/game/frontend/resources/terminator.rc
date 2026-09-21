@@ -1,0 +1,3 @@
+#include "resource.h"
+
+IDR_TERMINATOR_PNG RCDATA "terminator.png"

@@ -5,11 +5,15 @@
 #include "core/memory/PatternScanner.hpp"
 #include "game/frontend/GUI.hpp"
 #include "game/frontend/Menu.hpp"
+#include "game/frontend/resources/resource.h"
 #include "game/pointers/Pointers.hpp"
 
 #include <backends/imgui_impl_dx12.h>
 #include <backends/imgui_impl_win32.h>
 #include <imgui.h>
+#include <wincodec.h>
+
+#include <vector>
 
 
 namespace YimMenu
@@ -25,6 +29,8 @@ namespace YimMenu
 	void Renderer::DestroyImpl()
 	{
 		ImGui_ImplWin32_Shutdown();
+
+		GetInstance().DestroyLogoTexture();
 
 		if (Pointers.IsVulkan)
 		{
@@ -598,6 +604,8 @@ namespace YimMenu
 
 		VkQueue GraphicQueue            = VK_NULL_HANDLE;
 		const bool QueueSupportsGraphic = DoesQueueSupportGraphic(queue, &GraphicQueue);
+		if (GraphicQueue != VK_NULL_HANDLE)
+			m_VkGraphicQueue = GraphicQueue;
 
 		for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 		{
@@ -942,5 +950,531 @@ namespace YimMenu
 		GetInstance().m_CommandQueue->Signal(GetInstance().m_Fence.Get(), FenceValue);
 		GetInstance().m_FenceLastSignaledValue = FenceValue;
 		CurrentFrameContext.FenceValue         = FenceValue;
+	}
+
+	// ---- Terminator logo (menu header) ----
+
+	static bool DecodeLogoPng(std::vector<std::uint8_t>& out_rgba, int& out_width, int& out_height)
+	{
+		HMODULE mod = nullptr;
+		if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+		        reinterpret_cast<LPCSTR>(&Renderer::GetLogoTexture),
+		        &mod)
+		    || !mod)
+		{
+			LOG(WARNING) << "Logo: failed to get module handle.";
+			return false;
+		}
+
+		HRSRC res = FindResourceA(mod, MAKEINTRESOURCEA(IDR_TERMINATOR_PNG), RT_RCDATA);
+		if (!res)
+		{
+			LOG(WARNING) << "Logo: resource not found.";
+			return false;
+		}
+
+		const DWORD size = SizeofResource(mod, res);
+		const void* data = LockResource(LoadResource(mod, res));
+		if (!data || !size)
+		{
+			LOG(WARNING) << "Logo: resource is empty.";
+			return false;
+		}
+
+		const HRESULT co_init = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+		const bool need_uninit = SUCCEEDED(co_init);
+
+		bool ok = false;
+		ComPtr<IWICImagingFactory> factory;
+		if (SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory))))
+		{
+			ComPtr<IWICStream> stream;
+			if (SUCCEEDED(factory->CreateStream(&stream)) && SUCCEEDED(stream->InitializeFromMemory((WICInProcPointer)data, size)))
+			{
+				ComPtr<IWICBitmapDecoder> decoder;
+				if (SUCCEEDED(factory->CreateDecoderFromStream(stream.Get(), nullptr, WICDecodeMetadataCacheOnLoad, &decoder)))
+				{
+					ComPtr<IWICBitmapFrameDecode> frame;
+					if (SUCCEEDED(decoder->GetFrame(0, &frame)))
+					{
+						ComPtr<IWICFormatConverter> converter;
+						if (SUCCEEDED(factory->CreateFormatConverter(&converter))
+						    && SUCCEEDED(converter->Initialize(frame.Get(), GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom)))
+						{
+							UINT w = 0, h = 0;
+							if (SUCCEEDED(converter->GetSize(&w, &h)) && w > 0 && h > 0 && w <= 1024 && h <= 1024)
+							{
+								out_rgba.resize((std::size_t)w * h * 4);
+								if (SUCCEEDED(converter->CopyPixels(nullptr, w * 4, (UINT)out_rgba.size(), out_rgba.data())))
+								{
+									out_width  = (int)w;
+									out_height = (int)h;
+									ok         = true;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if (!ok)
+			LOG(WARNING) << "Logo: WIC decode failed.";
+
+		if (need_uninit)
+			CoUninitialize();
+
+		return ok;
+	}
+
+	bool Renderer::CreateLogoTextureDX12(const std::uint8_t* rgba, int width, int height)
+	{
+		if (!m_Device || !m_CommandQueue || !m_DescriptorHeap || m_SwapChainDesc.BufferCount < 2)
+			return false;
+
+		D3D12_RESOURCE_DESC tex_desc{};
+		tex_desc.Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		tex_desc.Width              = (UINT64)width;
+		tex_desc.Height             = (UINT)height;
+		tex_desc.DepthOrArraySize   = 1;
+		tex_desc.MipLevels          = 1;
+		tex_desc.Format             = DXGI_FORMAT_R8G8B8A8_UNORM;
+		tex_desc.SampleDesc.Count   = 1;
+		tex_desc.Layout             = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		tex_desc.Flags              = D3D12_RESOURCE_FLAG_NONE;
+
+		D3D12_HEAP_PROPERTIES heap_props{};
+		heap_props.Type = D3D12_HEAP_TYPE_DEFAULT;
+		if (FAILED(m_Device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &tex_desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_LogoTextureResource))))
+		{
+			LOG(WARNING) << "Logo: failed to create DX12 texture.";
+			return false;
+		}
+
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint{};
+		UINT num_rows       = 0;
+		UINT64 row_size     = 0;
+		UINT64 upload_bytes = 0;
+		m_Device->GetCopyableFootprints(&tex_desc, 0, 1, 0, &footprint, &num_rows, &row_size, &upload_bytes);
+
+		D3D12_RESOURCE_DESC buf_desc{};
+		buf_desc.Dimension        = D3D12_RESOURCE_DIMENSION_BUFFER;
+		buf_desc.Width            = upload_bytes;
+		buf_desc.Height           = 1;
+		buf_desc.DepthOrArraySize = 1;
+		buf_desc.MipLevels        = 1;
+		buf_desc.Format           = DXGI_FORMAT_UNKNOWN;
+		buf_desc.SampleDesc.Count = 1;
+		buf_desc.Layout           = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+		D3D12_HEAP_PROPERTIES upload_props{};
+		upload_props.Type = D3D12_HEAP_TYPE_UPLOAD;
+		if (FAILED(m_Device->CreateCommittedResource(&upload_props, D3D12_HEAP_FLAG_NONE, &buf_desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_LogoUploadBuffer))))
+		{
+			LOG(WARNING) << "Logo: failed to create DX12 upload buffer.";
+			m_LogoTextureResource.Reset();
+			return false;
+		}
+
+		void* mapped = nullptr;
+		D3D12_RANGE read_range{0, 0};
+		if (FAILED(m_LogoUploadBuffer->Map(0, &read_range, &mapped)))
+		{
+			LOG(WARNING) << "Logo: failed to map DX12 upload buffer.";
+			m_LogoTextureResource.Reset();
+			m_LogoUploadBuffer.Reset();
+			return false;
+		}
+		for (UINT y = 0; y < num_rows; ++y)
+			memcpy((std::uint8_t*)mapped + footprint.Offset + (std::size_t)y * footprint.Footprint.RowPitch, rgba + (std::size_t)y * width * 4, (std::size_t)width * 4);
+		m_LogoUploadBuffer->Unmap(0, nullptr);
+
+		ComPtr<ID3D12CommandAllocator> alloc;
+		ComPtr<ID3D12GraphicsCommandList> list;
+		if (FAILED(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&alloc)))
+		    || FAILED(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, alloc.Get(), nullptr, IID_PPV_ARGS(&list))))
+		{
+			LOG(WARNING) << "Logo: failed to create DX12 upload command list.";
+			m_LogoTextureResource.Reset();
+			m_LogoUploadBuffer.Reset();
+			return false;
+		}
+
+		D3D12_TEXTURE_COPY_LOCATION dst{};
+		dst.pResource        = m_LogoTextureResource.Get();
+		dst.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		dst.SubresourceIndex = 0;
+		D3D12_TEXTURE_COPY_LOCATION src{};
+		src.pResource       = m_LogoUploadBuffer.Get();
+		src.Type            = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		src.PlacedFootprint = footprint;
+		list->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+
+		D3D12_RESOURCE_BARRIER barrier{};
+		barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Transition.pResource   = m_LogoTextureResource.Get();
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+		barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		list->ResourceBarrier(1, &barrier);
+		list->Close();
+
+		ID3D12CommandList* lists[] = {list.Get()};
+		m_CommandQueue->ExecuteCommandLists(1, lists);
+
+		ComPtr<ID3D12Fence> fence;
+		HANDLE event = nullptr;
+		if (FAILED(m_Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence))) || !(event = CreateEventA(nullptr, FALSE, FALSE, nullptr)))
+		{
+			LOG(WARNING) << "Logo: failed to create DX12 upload fence.";
+			m_LogoTextureResource.Reset();
+			m_LogoUploadBuffer.Reset();
+			return false;
+		}
+		m_CommandQueue->Signal(fence.Get(), 1);
+		fence->SetEventOnCompletion(1, event);
+		WaitForSingleObject(event, 5000);
+		CloseHandle(event);
+
+		// SRV at descriptor index 1 of ImGui's heap (index 0 = fonts)
+		const UINT increment = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
+		srv.Format                    = DXGI_FORMAT_R8G8B8A8_UNORM;
+		srv.ViewDimension             = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srv.Shader4ComponentMapping   = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srv.Texture2D.MipLevels       = 1;
+		D3D12_CPU_DESCRIPTOR_HANDLE cpu = m_DescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+		cpu.ptr += increment;
+		m_Device->CreateShaderResourceView(m_LogoTextureResource.Get(), &srv, cpu);
+
+		D3D12_GPU_DESCRIPTOR_HANDLE gpu = m_DescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+		gpu.ptr += increment;
+		m_LogoTexture = (ImTextureID)gpu.ptr;
+
+		LOG(INFO) << "Logo: DX12 texture ready.";
+		return true;
+	}
+
+	static std::uint32_t FindVkMemoryType(VkPhysicalDevice physical, std::uint32_t type_bits, VkMemoryPropertyFlags props)
+	{
+		VkPhysicalDeviceMemoryProperties mem_props{};
+		vkGetPhysicalDeviceMemoryProperties(physical, &mem_props);
+		for (std::uint32_t i = 0; i < mem_props.memoryTypeCount; ++i)
+		{
+			if ((type_bits & (1u << i)) && (mem_props.memoryTypes[i].propertyFlags & props) == props)
+				return i;
+		}
+		return (std::uint32_t)-1;
+	}
+
+	bool Renderer::CreateLogoTextureVulkan(const std::uint8_t* rgba, int width, int height)
+	{
+		if (!m_VkDevice || m_VkGraphicQueue == VK_NULL_HANDLE || m_VkQueueFamily == (std::uint32_t)-1)
+			return false;
+
+		const VkDeviceSize upload_bytes = (VkDeviceSize)width * height * 4;
+
+		VkBuffer staging = VK_NULL_HANDLE;
+		VkDeviceMemory staging_mem = VK_NULL_HANDLE;
+		{
+			VkBufferCreateInfo buf_info{};
+			buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+			buf_info.size  = upload_bytes;
+			buf_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+			if (vkCreateBuffer(m_VkDevice, &buf_info, m_VkAllocator, &staging) != VK_SUCCESS)
+				return false;
+
+			VkMemoryRequirements req{};
+			vkGetBufferMemoryRequirements(m_VkDevice, staging, &req);
+			const std::uint32_t mem_type = FindVkMemoryType(m_VkPhysicalDevice, req.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+			if (mem_type == (std::uint32_t)-1)
+			{
+				vkDestroyBuffer(m_VkDevice, staging, m_VkAllocator);
+				return false;
+			}
+
+			VkMemoryAllocateInfo alloc_info{};
+			alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+			alloc_info.allocationSize  = req.size;
+			alloc_info.memoryTypeIndex = mem_type;
+			if (vkAllocateMemory(m_VkDevice, &alloc_info, m_VkAllocator, &staging_mem) != VK_SUCCESS)
+			{
+				vkDestroyBuffer(m_VkDevice, staging, m_VkAllocator);
+				return false;
+			}
+			vkBindBufferMemory(m_VkDevice, staging, staging_mem, 0);
+
+			void* mapped = nullptr;
+			if (vkMapMemory(m_VkDevice, staging_mem, 0, req.size, 0, &mapped) != VK_SUCCESS)
+			{
+				vkFreeMemory(m_VkDevice, staging_mem, m_VkAllocator);
+				vkDestroyBuffer(m_VkDevice, staging, m_VkAllocator);
+				return false;
+			}
+			memcpy(mapped, rgba, (std::size_t)upload_bytes);
+			vkUnmapMemory(m_VkDevice, staging_mem);
+		}
+
+		VkImageCreateInfo img_info{};
+		img_info.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		img_info.imageType     = VK_IMAGE_TYPE_2D;
+		img_info.format        = VK_FORMAT_R8G8B8A8_UNORM;
+		img_info.extent        = {(std::uint32_t)width, (std::uint32_t)height, 1};
+		img_info.mipLevels     = 1;
+		img_info.arrayLayers   = 1;
+		img_info.samples       = VK_SAMPLE_COUNT_1_BIT;
+		img_info.tiling        = VK_IMAGE_TILING_OPTIMAL;
+		img_info.usage         = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		img_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		if (vkCreateImage(m_VkDevice, &img_info, m_VkAllocator, &m_LogoImage) != VK_SUCCESS)
+		{
+			vkFreeMemory(m_VkDevice, staging_mem, m_VkAllocator);
+			vkDestroyBuffer(m_VkDevice, staging, m_VkAllocator);
+			return false;
+		}
+
+		{
+			VkMemoryRequirements req{};
+			vkGetImageMemoryRequirements(m_VkDevice, m_LogoImage, &req);
+			const std::uint32_t mem_type = FindVkMemoryType(m_VkPhysicalDevice, req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+			if (mem_type == (std::uint32_t)-1)
+			{
+				vkDestroyImage(m_VkDevice, m_LogoImage, m_VkAllocator);
+				m_LogoImage = VK_NULL_HANDLE;
+				vkFreeMemory(m_VkDevice, staging_mem, m_VkAllocator);
+				vkDestroyBuffer(m_VkDevice, staging, m_VkAllocator);
+				return false;
+			}
+
+			VkMemoryAllocateInfo alloc_info{};
+			alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+			alloc_info.allocationSize  = req.size;
+			alloc_info.memoryTypeIndex = mem_type;
+			if (vkAllocateMemory(m_VkDevice, &alloc_info, m_VkAllocator, &m_LogoMemory) != VK_SUCCESS)
+			{
+				vkDestroyImage(m_VkDevice, m_LogoImage, m_VkAllocator);
+				m_LogoImage = VK_NULL_HANDLE;
+				vkFreeMemory(m_VkDevice, staging_mem, m_VkAllocator);
+				vkDestroyBuffer(m_VkDevice, staging, m_VkAllocator);
+				return false;
+			}
+			vkBindImageMemory(m_VkDevice, m_LogoImage, m_LogoMemory, 0);
+		}
+
+		VkCommandPool cmd_pool = VK_NULL_HANDLE;
+		{
+			VkCommandPoolCreateInfo pool_info{};
+			pool_info.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+			pool_info.queueFamilyIndex = m_VkQueueFamily;
+			pool_info.flags            = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+			if (vkCreateCommandPool(m_VkDevice, &pool_info, m_VkAllocator, &cmd_pool) != VK_SUCCESS)
+			{
+				vkFreeMemory(m_VkDevice, m_LogoMemory, m_VkAllocator);
+				vkDestroyImage(m_VkDevice, m_LogoImage, m_VkAllocator);
+				m_LogoImage  = VK_NULL_HANDLE;
+				m_LogoMemory = VK_NULL_HANDLE;
+				vkFreeMemory(m_VkDevice, staging_mem, m_VkAllocator);
+				vkDestroyBuffer(m_VkDevice, staging, m_VkAllocator);
+				return false;
+			}
+		}
+
+		VkCommandBuffer cmd = VK_NULL_HANDLE;
+		VkFence fence       = VK_NULL_HANDLE;
+		bool upload_ok      = false;
+		{
+			VkCommandBufferAllocateInfo cmd_info{};
+			cmd_info.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+			cmd_info.commandPool        = cmd_pool;
+			cmd_info.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+			cmd_info.commandBufferCount = 1;
+			VkFenceCreateInfo fence_info{};
+			fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+
+			if (vkAllocateCommandBuffers(m_VkDevice, &cmd_info, &cmd) == VK_SUCCESS && vkCreateFence(m_VkDevice, &fence_info, m_VkAllocator, &fence) == VK_SUCCESS)
+			{
+				VkCommandBufferBeginInfo begin_info{};
+				begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+				begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+				if (vkBeginCommandBuffer(cmd, &begin_info) == VK_SUCCESS)
+				{
+					VkImageMemoryBarrier barrier{};
+					barrier.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+					barrier.srcAccessMask       = 0;
+					barrier.dstAccessMask       = VK_ACCESS_TRANSFER_WRITE_BIT;
+					barrier.oldLayout           = VK_IMAGE_LAYOUT_UNDEFINED;
+					barrier.newLayout           = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+					barrier.image               = m_LogoImage;
+					barrier.subresourceRange    = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+					vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+					VkBufferImageCopy region{};
+					region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+					region.imageExtent      = {(std::uint32_t)width, (std::uint32_t)height, 1};
+					vkCmdCopyBufferToImage(cmd, staging, m_LogoImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+					barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+					barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+					barrier.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+					barrier.newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+					vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+					if (vkEndCommandBuffer(cmd) == VK_SUCCESS)
+					{
+						VkSubmitInfo submit{};
+						submit.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+						submit.commandBufferCount = 1;
+						submit.pCommandBuffers    = &cmd;
+						if (vkQueueSubmit(m_VkGraphicQueue, 1, &submit, fence) == VK_SUCCESS && vkWaitForFences(m_VkDevice, 1, &fence, VK_TRUE, 5000000000ull) == VK_SUCCESS)
+							upload_ok = true;
+					}
+				}
+			}
+		}
+
+		vkDestroyFence(m_VkDevice, fence, m_VkAllocator);
+		vkDestroyCommandPool(m_VkDevice, cmd_pool, m_VkAllocator);
+		vkFreeMemory(m_VkDevice, staging_mem, m_VkAllocator);
+		vkDestroyBuffer(m_VkDevice, staging, m_VkAllocator);
+
+		if (!upload_ok)
+		{
+			vkFreeMemory(m_VkDevice, m_LogoMemory, m_VkAllocator);
+			vkDestroyImage(m_VkDevice, m_LogoImage, m_VkAllocator);
+			m_LogoImage  = VK_NULL_HANDLE;
+			m_LogoMemory = VK_NULL_HANDLE;
+			LOG(WARNING) << "Logo: Vulkan upload failed.";
+			return false;
+		}
+
+		VkImageViewCreateInfo view_info{};
+		view_info.sType    = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		view_info.image    = m_LogoImage;
+		view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		view_info.format   = VK_FORMAT_R8G8B8A8_UNORM;
+		view_info.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+		if (vkCreateImageView(m_VkDevice, &view_info, m_VkAllocator, &m_LogoView) != VK_SUCCESS)
+		{
+			vkFreeMemory(m_VkDevice, m_LogoMemory, m_VkAllocator);
+			vkDestroyImage(m_VkDevice, m_LogoImage, m_VkAllocator);
+			m_LogoImage  = VK_NULL_HANDLE;
+			m_LogoMemory = VK_NULL_HANDLE;
+			return false;
+		}
+
+		VkSamplerCreateInfo sampler_info{};
+		sampler_info.sType        = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		sampler_info.magFilter    = VK_FILTER_LINEAR;
+		sampler_info.minFilter    = VK_FILTER_LINEAR;
+		sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		sampler_info.maxAnisotropy = 1.0f;
+		sampler_info.maxLod        = 0.0f;
+		if (vkCreateSampler(m_VkDevice, &sampler_info, m_VkAllocator, &m_LogoSampler) != VK_SUCCESS)
+		{
+			vkDestroyImageView(m_VkDevice, m_LogoView, m_VkAllocator);
+			m_LogoView = VK_NULL_HANDLE;
+			vkFreeMemory(m_VkDevice, m_LogoMemory, m_VkAllocator);
+			vkDestroyImage(m_VkDevice, m_LogoImage, m_VkAllocator);
+			m_LogoImage  = VK_NULL_HANDLE;
+			m_LogoMemory = VK_NULL_HANDLE;
+			return false;
+		}
+
+		m_LogoDescSet = ImGui_ImplVulkan_AddTexture(m_LogoSampler, m_LogoView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		if (m_LogoDescSet == VK_NULL_HANDLE)
+		{
+			vkDestroySampler(m_VkDevice, m_LogoSampler, m_VkAllocator);
+			m_LogoSampler = VK_NULL_HANDLE;
+			vkDestroyImageView(m_VkDevice, m_LogoView, m_VkAllocator);
+			m_LogoView = VK_NULL_HANDLE;
+			vkFreeMemory(m_VkDevice, m_LogoMemory, m_VkAllocator);
+			vkDestroyImage(m_VkDevice, m_LogoImage, m_VkAllocator);
+			m_LogoImage  = VK_NULL_HANDLE;
+			m_LogoMemory = VK_NULL_HANDLE;
+			return false;
+		}
+
+		m_LogoTexture = (ImTextureID)m_LogoDescSet;
+		LOG(INFO) << "Logo: Vulkan texture ready.";
+		return true;
+	}
+
+	ImTextureID Renderer::GetLogoTextureImpl()
+	{
+		if (m_LogoTexture)
+			return m_LogoTexture;
+
+		// DX12 backend ready?
+		if (m_Device && m_CommandQueue && m_DescriptorHeap)
+		{
+			static bool dx12_failed = false;
+			if (dx12_failed)
+				return (ImTextureID)0;
+
+			static std::vector<std::uint8_t> png;
+			static int png_w = 0, png_h = 0;
+			static bool decoded = DecodeLogoPng(png, png_w, png_h);
+			if (!decoded || !CreateLogoTextureDX12(png.data(), png_w, png_h))
+				dx12_failed = true;
+
+			return m_LogoTexture;
+		}
+
+		// Vulkan backend ready (needs the graphics queue, cached from present)?
+		if (m_VkDevice && m_VkGraphicQueue != VK_NULL_HANDLE)
+		{
+			static bool vk_failed = false;
+			if (vk_failed)
+				return (ImTextureID)0;
+
+			static std::vector<std::uint8_t> png;
+			static int png_w = 0, png_h = 0;
+			static bool decoded = DecodeLogoPng(png, png_w, png_h);
+			if (!decoded || !CreateLogoTextureVulkan(png.data(), png_w, png_h))
+				vk_failed = true;
+
+			return m_LogoTexture;
+		}
+
+		return (ImTextureID)0;
+	}
+
+	void Renderer::DestroyLogoTexture()
+	{
+		m_LogoTexture = (ImTextureID)0;
+
+		m_LogoUploadBuffer.Reset();
+		m_LogoTextureResource.Reset();
+
+		if (m_VkDevice)
+		{
+			if (m_LogoDescSet != VK_NULL_HANDLE && m_VkDescriptorPool != VK_NULL_HANDLE)
+			{
+				vkFreeDescriptorSets(m_VkDevice, m_VkDescriptorPool, 1, &m_LogoDescSet);
+				m_LogoDescSet = VK_NULL_HANDLE;
+			}
+			if (m_LogoSampler != VK_NULL_HANDLE)
+			{
+				vkDestroySampler(m_VkDevice, m_LogoSampler, m_VkAllocator);
+				m_LogoSampler = VK_NULL_HANDLE;
+			}
+			if (m_LogoView != VK_NULL_HANDLE)
+			{
+				vkDestroyImageView(m_VkDevice, m_LogoView, m_VkAllocator);
+				m_LogoView = VK_NULL_HANDLE;
+			}
+			if (m_LogoImage != VK_NULL_HANDLE)
+			{
+				vkDestroyImage(m_VkDevice, m_LogoImage, m_VkAllocator);
+				m_LogoImage = VK_NULL_HANDLE;
+			}
+			if (m_LogoMemory != VK_NULL_HANDLE)
+			{
+				vkFreeMemory(m_VkDevice, m_LogoMemory, m_VkAllocator);
+				m_LogoMemory = VK_NULL_HANDLE;
+			}
+		}
 	}
 }

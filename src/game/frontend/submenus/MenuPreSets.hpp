@@ -63,7 +63,54 @@ namespace YimMenu::Themes
     static inline const std::vector<ThemePreset>& GetThemePresets()
     {
         static std::vector<ThemePreset> presets = {
-            // 1. Clear Blue (DEFAULT)
+            // 1. Terminator Red (DEFAULT)
+            {
+                "Terminator Red",
+                {0.75f, 0.10f, 0.12f, 1.0f}, // Preview: Terminator Red
+                {
+                    {ImGuiCol_Text, {1.0f, 0.92f, 0.88f, 1.00f}},
+                    {ImGuiCol_TextDisabled, {0.85f, 0.85f, 0.85f, 0.5f}},
+                    {ImGuiCol_WindowBg, {0.10f, 0.05f, 0.05f, 0.0f}},
+                    {ImGuiCol_ChildBg, {0.14f, 0.07f, 0.07f, 0.70f}},
+                    {ImGuiCol_PopupBg, {0.16f, 0.07f, 0.07f, 0.95f}},
+                    {ImGuiCol_Border, {0.45f, 0.12f, 0.12f, 0.40f}},
+                    {ImGuiCol_FrameBg, {0.45f, 0.08f, 0.10f, 0.45f}},
+                    {ImGuiCol_FrameBgHovered, {0.70f, 0.10f, 0.12f, 0.70f}},
+                    {ImGuiCol_FrameBgActive, {0.85f, 0.12f, 0.14f, 0.90f}},
+                    {ImGuiCol_TitleBg, {0.00f, 0.00f, 0.00f, 0.60f}},
+                    {ImGuiCol_TitleBgActive, {0.15f, 0.03f, 0.03f, 0.70f}},
+                    {ImGuiCol_TitleBgCollapsed, {0.00f, 0.00f, 0.00f, 0.60f}},
+                    {ImGuiCol_Tab, {0.20f, 0.06f, 0.06f, 0.60f}},
+                    {ImGuiCol_TabHovered, {0.70f, 0.10f, 0.12f, 0.70f}},
+                    {ImGuiCol_TabActive, {0.30f, 0.08f, 0.08f, 0.85f}},
+                    {ImGuiCol_TabUnfocused, {0.20f, 0.06f, 0.06f, 0.60f}},
+                    {ImGuiCol_TabUnfocusedActive, {0.30f, 0.08f, 0.08f, 0.85f}},
+                    {ImGuiCol_Header, {0.20f, 0.06f, 0.06f, 0.60f}},
+                    {ImGuiCol_HeaderHovered, {0.70f, 0.10f, 0.12f, 0.80f}},
+                    {ImGuiCol_HeaderActive, {0.85f, 0.12f, 0.14f, 0.90f}},
+                    {ImGuiCol_Button, {0.55f, 0.08f, 0.10f, 0.70f}},
+                    {ImGuiCol_ButtonHovered, {0.78f, 0.12f, 0.14f, 0.90f}},
+                    {ImGuiCol_ButtonActive, {0.90f, 0.15f, 0.16f, 1.00f}},
+                    {ImGuiCol_PlotLines, {0.80f, 0.80f, 0.00f, 0.00f}},
+                    {ImGuiCol_PlotLinesHovered, {1.00f, 0.85f, 0.00f, 1.00f}},
+                    {ImGuiCol_PlotHistogram, {0.90f, 0.70f, 0.20f, 1.00f}},
+                    {ImGuiCol_PlotHistogramHovered, {1.00f, 0.80f, 0.40f, 1.00f}},
+                    {ImGuiCol_TextSelectedBg, {0.80f, 0.10f, 0.10f, 0.50f}},
+                    {ImGuiCol_MenuBarBg, {0.08f, 0.03f, 0.03f, 0.70f}},
+                    {ImGuiCol_ScrollbarBg, {0.05f, 0.02f, 0.02f, 0.70f}},
+                    {ImGuiCol_ScrollbarGrab, {0.45f, 0.08f, 0.10f, 0.70f}},
+                    {ImGuiCol_ScrollbarGrabHovered, {0.70f, 0.10f, 0.12f, 0.80f}},
+                    {ImGuiCol_ScrollbarGrabActive, {0.85f, 0.12f, 0.14f, 0.90f}},
+                    {ImGuiCol_CheckMark, {1.0f, 0.25f, 0.25f, 1.00f}},
+                    {ImGuiCol_SliderGrab, {0.45f, 0.08f, 0.10f, 0.80f}},
+                    {ImGuiCol_SliderGrabActive, {0.85f, 0.12f, 0.14f, 1.00f}},
+                    {ImGuiCol_Separator, {0.45f, 0.12f, 0.12f, 0.40f}},
+                    {ImGuiCol_ResizeGrip, {0.45f, 0.08f, 0.10f, 0.70f}},
+                    {ImGuiCol_ResizeGripHovered, {0.70f, 0.10f, 0.12f, 0.80f}},
+                    {ImGuiCol_ResizeGripActive, {0.85f, 0.12f, 0.14f, 0.90f}},
+                }
+            },
+            // 2. Clear Blue
             {
                 "Clear Blue",
                 {0.27f, 0.51f, 0.71f, 1.0f}, // Preview: SteelBlue

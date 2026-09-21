@@ -32,11 +32,11 @@ namespace YimMenu
         }
         ImGui::EndChild();
 
-        // Adjustable font for "Mi5hlen" & "Menu"
+        // Adjustable font for "RDO Terminator" & "by Mi5hlen"
         if (Menu::Font::g_OverlayFont) ImGui::PushFont(Menu::Font::g_OverlayFont);
-        ImGui::TextColored(ImVec4(0.0f, 0.75f, 1.0f, 1.0f), "Mi5hlen"); // Electric Blue (R, G, B, A)
+        ImGui::TextColored(ImVec4(1.0f, 0.12f, 0.12f, 1.0f), "RDO Terminator"); // Terminator Red (R, G, B, A)
         ImGui::SameLine();
-        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Menu"); // Electric Yellow (R, G, B, A)
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "by Mi5hlen"); // Electric Yellow (R, G, B, A)
         if (Menu::Font::g_OverlayFont) ImGui::PopFont();
 
         pos.y -= 20; // Reduced upward offset from 20 to 20 (no change, already reduced)

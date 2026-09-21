@@ -112,6 +112,15 @@ namespace YimMenu
 		static void DX12PreResize();
 		static void DX12PostResize();
 
+		/**
+		 * @brief Terminator logo texture for the menu header (lazy-loaded once).
+		 * @return ImTextureID or 0 if the backend is not ready / loading failed.
+		 */
+		static ImTextureID GetLogoTexture()
+		{
+			return GetInstance().GetLogoTextureImpl();
+		}
+
 		static void VkCleanupRenderTarget();
 
 		static bool IsResizing()
@@ -148,6 +157,11 @@ namespace YimMenu
 	private:
 		static void DX12NewFrame();
 		static void DX12EndFrame();
+
+		ImTextureID GetLogoTextureImpl();
+		bool CreateLogoTextureDX12(const std::uint8_t* rgba, int width, int height);
+		bool CreateLogoTextureVulkan(const std::uint8_t* rgba, int width, int height);
+		void DestroyLogoTexture();
 
 	private:
 		void DestroyImpl();
@@ -215,8 +229,20 @@ namespace YimMenu
 		VkRenderPass m_VkRenderPass;
 		VkDescriptorPool m_VkDescriptorPool;
 		VkPipelineCache m_VkPipelineCache;
+		VkQueue m_VkGraphicQueue = VK_NULL_HANDLE;
 		uint32_t m_VkMinImageCount = 2;
 		VkExtent2D m_VkImageExtent;
+
+		// Terminator logo (menu header), backend-specific storage.
+		// DX12: SRV lives in ImGui's heap (m_DescriptorHeap) at index 1 (0 = fonts).
+		ImTextureID m_LogoTexture = (ImTextureID)0;
+		ComPtr<ID3D12Resource> m_LogoTextureResource;
+		ComPtr<ID3D12Resource> m_LogoUploadBuffer;
+		VkImage m_LogoImage               = VK_NULL_HANDLE;
+		VkDeviceMemory m_LogoMemory       = VK_NULL_HANDLE;
+		VkImageView m_LogoView            = VK_NULL_HANDLE;
+		VkSampler m_LogoSampler           = VK_NULL_HANDLE;
+		VkDescriptorSet m_LogoDescSet     = VK_NULL_HANDLE;
 
 	private:
 		//Other
