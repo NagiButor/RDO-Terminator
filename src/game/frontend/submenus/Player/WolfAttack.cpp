@@ -1,9 +1,12 @@
 // WolfAttack.cpp - Spawns a wolf pack that hunts down the selected player
 
 #include "core/commands/LoopedCommand.hpp"
+#include "core/frontend/Notifications.hpp"
 #include "game/backend/Players.hpp"
 #include "game/frontend/submenus/Player/AttackWaves.hpp"
 #include "game/rdr/Ped.hpp"
+
+#include <string>
 
 namespace YimMenu::Features
 {
@@ -41,9 +44,15 @@ namespace YimMenu::Features
             AttackWaves::Cleanup(wolf_index);
         }
 
+        void OnEnable() override
+        {
+            Notifications::Show("Wolf Attack", std::string("Releasing the pack on ") + Players::GetSelected().GetName(), NotificationType::Info);
+        }
+
         void OnDisable() override
         {
             AttackWaves::Cleanup(wolf_index, true);
+            Notifications::Show("Wolf Attack", std::string("Cleared wolves (target: ") + Players::GetSelected().GetName() + ")", NotificationType::Info);
         }
     };
 

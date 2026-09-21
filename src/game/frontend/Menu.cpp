@@ -64,11 +64,12 @@ namespace YimMenu
 					ImGui::SetNextWindowSize(ImVec2((float)width, (float)height), ImGuiCond_Once);
 				}
 
-				if (ImGui::Begin("##Mi5hlenMenu", nullptr,
+				const bool window_visible = ImGui::Begin("##Mi5hlenMenu", nullptr,
 					ImGuiWindowFlags_NoTitleBar |
 					ImGuiWindowFlags_NoCollapse |
 					ImGuiWindowFlags_AlwaysUseWindowPadding |
-					ImGuiWindowFlags_NoSavedSettings))
+					ImGuiWindowFlags_NoSavedSettings);
+				if (window_visible)
 				{
 					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
 					ImGui::Text("Mi5hlen Menu");
@@ -119,9 +120,12 @@ namespace YimMenu
 						lastMaximized = maximized;
 					}
 					firstFrame = false;
-
-					ImGui::End();
 				}
+
+				// End() must always be called, even when Begin() returned false (window clipped
+				// or not visible). Skipping it corrupts the ImGui stack and every subsequent
+				// frame renders broken.
+				ImGui::End();
 
 				ImGui::PopStyleColor();
 				ImGui::PopFont();

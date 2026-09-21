@@ -1,9 +1,12 @@
 // PoliceAttack.cpp - Spawns waves of lawmen that hunt down the selected player
 
 #include "core/commands/LoopedCommand.hpp"
+#include "core/frontend/Notifications.hpp"
 #include "game/backend/Players.hpp"
 #include "game/frontend/submenus/Player/AttackWaves.hpp"
 #include "game/rdr/Ped.hpp"
+
+#include <string>
 
 namespace YimMenu::Features
 {
@@ -42,9 +45,15 @@ namespace YimMenu::Features
             AttackWaves::Cleanup(police_index);
         }
 
+        void OnEnable() override
+        {
+            Notifications::Show("Police Attack", std::string("Spawning waves of lawmen for ") + Players::GetSelected().GetName(), NotificationType::Info);
+        }
+
         void OnDisable() override
         {
             AttackWaves::Cleanup(police_index, true);
+            Notifications::Show("Police Attack", std::string("Cleared lawmen (target: ") + Players::GetSelected().GetName() + ")", NotificationType::Info);
         }
     };
 

@@ -1,6 +1,7 @@
 // Simplified IndianAttack.cpp - Spawns basic Indian peds that target the selected player
 
 #include "core/commands/LoopedCommand.hpp"
+#include "core/frontend/Notifications.hpp"
 #include "game/backend/ScriptMgr.hpp"
 #include "game/backend/FiberPool.hpp"
 #include "game/backend/Self.hpp"
@@ -10,6 +11,7 @@
 
 #include <array>
 #include <random>
+#include <string>
 
 namespace YimMenu::Features
 {
@@ -106,9 +108,15 @@ namespace YimMenu::Features
             CleanupIndians();
         }
 
+        void OnEnable() override
+        {
+            Notifications::Show("Indian Attack", std::string("Spawning waves of Indians for ") + Players::GetSelected().GetName(), NotificationType::Info);
+        }
+
         void OnDisable() override
         {
             CleanupIndians();
+            Notifications::Show("Indian Attack", std::string("Cleared Indians (target: ") + Players::GetSelected().GetName() + ")", NotificationType::Info);
         }
     };
 

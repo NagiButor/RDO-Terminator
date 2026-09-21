@@ -32,7 +32,9 @@ namespace YimMenu::Features::AttackWaves
     // Returns the amount of peds that were actually spawned.
     int SpawnWave(int target_handle, const Config& config, std::vector<int>& spawned);
 
-    // Deletes dead/despawned attackers and removes them from the list.
-    // When delete_all is set, living attackers are removed as well (used when the feature gets turned off).
+    // Deletes despawned attackers and removes them from the list.
+    // Dead attackers are kept as corpses for ~45 seconds, then cleaned up automatically.
+    // When delete_all is set, living attackers and every tracked corpse are removed as well
+    // (used when the feature gets turned off).
     void Cleanup(std::vector<int>& spawned, bool delete_all = false);
 }

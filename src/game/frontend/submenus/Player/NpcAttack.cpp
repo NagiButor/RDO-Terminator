@@ -154,9 +154,16 @@ namespace YimMenu::Features
             AttackWaves::Cleanup(npc_index);
         }
 
+        void OnEnable() override
+        {
+            const std::string model_name = NpcAttackOptions::ResolveModelName(NpcAttackOptions::ConfiguredModel());
+            Notifications::Show("Npc Attack", std::string("Releasing ") + (model_name.empty() ? NpcAttackOptions::ConfiguredModel() : model_name) + " on " + Players::GetSelected().GetName(), NotificationType::Info);
+        }
+
         void OnDisable() override
         {
             AttackWaves::Cleanup(npc_index, true);
+            Notifications::Show("Npc Attack", std::string("Cleared npcs (target: ") + Players::GetSelected().GetName() + ")", NotificationType::Info);
         }
     };
 

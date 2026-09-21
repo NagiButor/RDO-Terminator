@@ -2,8 +2,10 @@
 
 #include "util/Joaat.hpp"
 
+#include <chrono>
 #include <cmath>
 #include <random>
+#include <unordered_map>
 
 namespace YimMenu::Features::AttackWaves
 {
@@ -149,17 +151,47 @@ namespace YimMenu::Features::AttackWaves
         return spawn_count;
     }
 
+    // Corpses are kept around for a while after death so they don't vanish the moment they die.
+    static constexpr float corpse_lifetime = 45.f;
+    static std::unordered_map<int, std::chrono::steady_clock::time_point> s_corpses;
+
     void Cleanup(std::vector<int>& spawned, bool delete_all)
     {
+        const auto now = std::chrono::steady_clock::now();
+
+        // purge corpses that outlived their keep-alive time (everything when delete_all is set)
+        for (auto it = s_corpses.begin(); it != s_corpses.end();)
+        {
+            if (delete_all || now >= it->second)
+            {
+                int handle = it->first;
+                if (ENTITY::DOES_ENTITY_EXIST(handle) && ENTITY::IS_ENTITY_DEAD(handle))
+                    PED::DELETE_PED(&handle);
+                it = s_corpses.erase(it);
+            }
+            else
+                ++it;
+        }
+
         auto it = spawned.begin();
         while (it != spawned.end())
         {
-            bool remove = delete_all || !ENTITY::DOES_ENTITY_EXIST(*it) || ENTITY::IS_ENTITY_DEAD(*it);
+            const bool exists = ENTITY::DOES_ENTITY_EXIST(*it);
+            const bool remove = delete_all || !exists || ENTITY::IS_ENTITY_DEAD(*it);
 
             if (remove)
             {
-                if (ENTITY::DOES_ENTITY_EXIST(*it))
-                    PED::DELETE_PED(&(*it));
+                if (delete_all)
+                {
+                    if (exists)
+                        PED::DELETE_PED(&(*it));
+                }
+                else if (exists)
+                {
+                    // dead attacker: keep the corpse visible for a while instead of deleting it instantly
+                    s_corpses[*it] = now + std::chrono::seconds((int)corpse_lifetime);
+                }
+                // a ped that simply despawned has nothing left to clean up
 
                 it = spawned.erase(it);
             }

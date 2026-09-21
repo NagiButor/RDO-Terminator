@@ -1,9 +1,12 @@
 // ArmyAttack.cpp - Spawns waves of army soldiers that hunt down the selected player
 
 #include "core/commands/LoopedCommand.hpp"
+#include "core/frontend/Notifications.hpp"
 #include "game/backend/Players.hpp"
 #include "game/frontend/submenus/Player/AttackWaves.hpp"
 #include "game/rdr/Ped.hpp"
+
+#include <string>
 
 namespace YimMenu::Features
 {
@@ -42,9 +45,15 @@ namespace YimMenu::Features
             AttackWaves::Cleanup(army_index);
         }
 
+        void OnEnable() override
+        {
+            Notifications::Show("Army Attack", std::string("Spawning waves of soldiers for ") + Players::GetSelected().GetName(), NotificationType::Info);
+        }
+
         void OnDisable() override
         {
             AttackWaves::Cleanup(army_index, true);
+            Notifications::Show("Army Attack", std::string("Cleared soldiers (target: ") + Players::GetSelected().GetName() + ")", NotificationType::Info);
         }
     };
 
