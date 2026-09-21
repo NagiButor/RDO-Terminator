@@ -1,6 +1,7 @@
 #include "BoomPlus.hpp"
 #include "game/frontend/items/Items.hpp"
 #include "game/features/Features.hpp"
+#include "game/frontend/submenus/Player/NpcAttack.hpp"
 
 namespace YimMenu::Submenus {
     std::shared_ptr<Category> BuildBoomPlusMenu() {
@@ -36,11 +37,32 @@ namespace YimMenu::Submenus {
         plus->AddItem(std::make_shared<PlayerCommandItem>("poodleattack"_J, "Poodle Attack"));
 
         plus->AddItem(std::make_shared<BoolCommandItem>("indianattack"_J));
+        plus->AddItem(std::make_shared<BoolCommandItem>("armyattack"_J));
+        plus->AddItem(std::make_shared<BoolCommandItem>("policeattack"_J));
+        plus->AddItem(std::make_shared<BoolCommandItem>("wolfattack"_J));
+        plus->AddItem(std::make_shared<BoolCommandItem>("npcattack"_J));
         //plus->AddItem(std::make_shared<BoolCommandItem>("zombieslogging"_J));
         plus->AddItem(std::make_shared<BoolCommandItem>("hardmode"_J));
 
+        // Configuration for the "Npc Attack" toggle: pick the ped/animal, the amount and where it spawns
+        auto npc_attack = std::make_shared<Group>("Npc Attack (config)", 1);
+        npc_attack->AddItem(std::make_shared<InputTextWithHint>("##npcmodel", "model, e.g. A_C_Bear_01 (Tab = autocomplete)",
+            &Features::NpcAttackOptions::ConfiguredModel(), ImGuiInputTextFlags_CallbackCompletion, nullptr, Features::NpcAttackOptions::ModelInputCallback));
+        npc_attack->AddItem(std::make_shared<ImGuiItem>([] {
+            ImGui::SliderInt("Count", &Features::NpcAttackOptions::ConfiguredCount(), 1, 20);
+            ImGui::SliderFloat("Distance", &Features::NpcAttackOptions::ConfiguredDistance(), 2.f, 150.f, "%.0f m");
+
+            int side = (int)Features::NpcAttackOptions::ConfiguredSide();
+            if (ImGui::Combo("Spawn point", &side, "Around the player\0In front of the player\0Behind the player\0"))
+                Features::NpcAttackOptions::ConfiguredSideIndex() = side;
+
+            ImGui::TextDisabled("Bear = A_C_Bear_01 | Cougar = A_C_Cougar_01 | Wolf = A_C_Wolf");
+            ImGui::TextDisabled("Turn on \"Npc Attack\" in the Plus tab to use these settings.");
+        }));
+
         menu->AddItem(explosions);
         menu->AddItem(plus);
+        menu->AddItem(npc_attack);
 
         return menu;
     }
