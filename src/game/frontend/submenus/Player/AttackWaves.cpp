@@ -84,7 +84,12 @@ namespace YimMenu::Features::AttackWaves
 
         const char* weapon_name = PickRandom(config.weapons);
         if (weapon_name)
+        {
             WEAPON::GIVE_WEAPON_TO_PED(handle, Joaat(weapon_name), 500, true, false, 0, false, 0.5f, 1.0f, 1, false, 0, false);
+
+            if (config.force_equip)
+                WEAPON::SET_CURRENT_PED_WEAPON(handle, Joaat(weapon_name), true, 0, false, false);
+        }
     }
 
     int SpawnWave(int target_handle, const Config& config, std::vector<int>& spawned)

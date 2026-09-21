@@ -26,6 +26,7 @@ namespace YimMenu::Features::AttackWaves
         int armour = 0;     // 0 = no extra armour
         float move_rate = 1.35f;
         float accuracy = 70.f;
+        bool force_equip = false; // force the given weapon into the ped's hands (melee-only attackers)
     };
 
     // Spawns a wave of attackers around the target ped and sends them after it.

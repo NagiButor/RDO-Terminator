@@ -8,6 +8,7 @@
 #include "game/backend/Players.hpp"
 #include "game/rdr/Natives.hpp"
 #include "game/rdr/Ped.hpp"
+#include "game/frontend/submenus/Player/AttackWaves.hpp"
 
 #include <array>
 #include <random>
@@ -99,6 +100,71 @@ namespace YimMenu::Features
             indian_index.push_back(indianHandle);
         }
     }
+
+    static std::vector<int> knife_indian_index;
+
+    static AttackWaves::Config GetKnifeIndianConfig()
+    {
+        AttackWaves::Config config{};
+        config.models = {
+            "a_m_m_wapwarriors_01",
+            "u_m_m_nbxindianowner_01",
+            "a_f_m_wapnative_01",
+            "u_m_m_bht_skinnersearch_01"
+        };
+        // knives only: one random knife per ped, forced into their hands
+        config.weapons = {
+            "WEAPON_MELEE_KNIFE",
+            "WEAPON_MELEE_KNIFE_JAWBONE",
+            "WEAPON_MELEE_KNIFE_MINER",
+            "WEAPON_MELEE_KNIFE_RUSTIC",
+            "WEAPON_MELEE_KNIFE_HORROR",
+            "WEAPON_MELEE_KNIFE_BEAR",
+            "WEAPON_MELEE_KNIFE_CIVIL_WAR"
+        };
+        config.count       = 10;
+        config.distance    = 50.f;
+        config.side        = AttackWaves::SpawnSide::Around;
+        config.move_rate   = 1.6f; // knife fighters must be able to catch their target
+        config.accuracy    = 70.f;
+        config.force_equip = true;
+        return config;
+    }
+
+    class KnifeIndianAttack : public LoopedCommand
+    {
+        using LoopedCommand::LoopedCommand;
+
+        void OnTick() override
+        {
+            Player target_player = Players::GetSelected();
+            Ped player_ped       = target_player.GetPed();
+
+            if (!player_ped.IsValid() || player_ped.GetHealth() <= 0)
+            {
+                AttackWaves::Cleanup(knife_indian_index);
+                return;
+            }
+
+            if (knife_indian_index.empty())
+                AttackWaves::SpawnWave(player_ped.GetHandle(), GetKnifeIndianConfig(), knife_indian_index);
+
+            AttackWaves::Cleanup(knife_indian_index);
+        }
+
+        void OnEnable() override
+        {
+            Notifications::Show("Indian Attack", std::string("Spawning knife-only Indians for ") + Players::GetSelected().GetName(), NotificationType::Info);
+        }
+
+        void OnDisable() override
+        {
+            AttackWaves::Cleanup(knife_indian_index, true);
+            Notifications::Show("Indian Attack", std::string("Cleared knife Indians (target: ") + Players::GetSelected().GetName() + ")", NotificationType::Info);
+        }
+    };
+
+    static KnifeIndianAttack _KnifeIndianAttack{"indianknifeattack", "Indian Attack (Knives)", "Spawns waves of Indian peds armed with knives only that attack the selected player."};
 
     class SimpleIndianAttack : public LoopedCommand
     {

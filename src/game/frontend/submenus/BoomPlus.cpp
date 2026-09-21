@@ -37,6 +37,7 @@ namespace YimMenu::Submenus {
         plus->AddItem(std::make_shared<PlayerCommandItem>("poodleattack"_J, "Poodle Attack"));
 
         plus->AddItem(std::make_shared<BoolCommandItem>("indianattack"_J));
+        plus->AddItem(std::make_shared<BoolCommandItem>("indianknifeattack"_J));
         plus->AddItem(std::make_shared<BoolCommandItem>("armyattack"_J));
         plus->AddItem(std::make_shared<BoolCommandItem>("policeattack"_J));
         plus->AddItem(std::make_shared<BoolCommandItem>("wolfattack"_J));
