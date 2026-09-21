@@ -21,19 +21,19 @@ jobs:
         run: cmake -D CMAKE_BUILD_TYPE=Release -S. -Bbuild -G Ninja
 
       - name: Build 64bit release DLL
-        run: cmake --build ./build --config Release --target Terminus --
+        run: cmake --build ./build --config Release --target Mi5hlenMenu --
 
       - name: Check if DLL got built
-        run: if (-Not (Test-Path -path "build/Terminus.dll")) {throw 1}
+        run: if (-Not (Test-Path -path "build/Mi5hlenMenu.dll")) {throw 1}
 
-      - name: Rename DLL to Terminus-dev-{GITHUB_SHA}.dll
+      - name: Rename DLL to Mi5hlenMenu-dev-{GITHUB_SHA}.dll
         run: |
-          del Terminus-dev-*.dll
-          ren Terminus.dll Terminus-dev-${{github.sha}}.dll
+          del Mi5hlenMenu-dev-*.dll
+          ren Mi5hlenMenu.dll Mi5hlenMenu-dev-${{github.sha}}.dll
         working-directory: build/
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
           name: binary
-          path: build/Terminus-dev-*.dll
+          path: build/Mi5hlenMenu-dev-*.dll

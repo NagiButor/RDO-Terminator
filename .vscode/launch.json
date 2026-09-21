@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "GTA5.exe Attach",
+            "name": "rdr2.exe Attach",
             "type": "cppvsdbg",
             "request": "attach",
             "processId": "${command:pickProcess}"

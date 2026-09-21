@@ -30,7 +30,7 @@ namespace YimMenu::Submenus
     std::string Settings::GetSettingsFilePath() const {
         char* appdata = std::getenv("appdata");
         if (!appdata) return "";
-        std::filesystem::path path = std::filesystem::path(appdata) / "Terminus-b0rk3d" / "settings.json";
+        std::filesystem::path path = std::filesystem::path(appdata) / "Mi5hlenMenu" / "settings.json";
         return path.string();
     }
 

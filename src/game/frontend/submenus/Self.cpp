@@ -46,21 +46,21 @@ namespace YimMenu::Submenus
 	static std::set<std::pair<std::string, std::string>> favoriteAnimations;
 	static std::set<std::string> favoriteMusics;
 
-	static std::string GetTerminusRoamingPath(const std::string& filename)
+	static std::string GetMi5hlenRoamingPath(const std::string& filename)
 	{
 		const char* appData = std::getenv("APPDATA");
 		std::string base;
 		if (appData)
-			base = std::string(appData) + "\\Terminus-b0rk3d\\";
+			base = std::string(appData) + "\\Mi5hlenMenu\\";
 		else
-			base = "Terminus-b0rk3d\\";
+			base = "Mi5hlenMenu\\";
 		std::filesystem::create_directories(base);
 		return base + filename;
 	}
 
 	static void LoadAnimationHistory()
 	{
-		std::ifstream in(GetTerminusRoamingPath("animation_history.txt"));
+		std::ifstream in(GetMi5hlenRoamingPath("animation_history.txt"));
 		if (!in.is_open()) return;
 		lastPlayedAnimations.clear();
 		std::string dict, anim;
@@ -74,7 +74,7 @@ namespace YimMenu::Submenus
 
 	static void SaveAnimationHistory()
 	{
-		std::ofstream out(GetTerminusRoamingPath("animation_history.txt"), std::ios::trunc);
+		std::ofstream out(GetMi5hlenRoamingPath("animation_history.txt"), std::ios::trunc);
 		for (const auto& [dict, anim] : lastPlayedAnimations)
 			out << dict << "\n" << anim << "\n";
 		out.close();
@@ -82,7 +82,7 @@ namespace YimMenu::Submenus
 
 	static void LoadFavoriteAnimations()
 	{
-		std::ifstream in(GetTerminusRoamingPath("animation_favorites.txt"));
+		std::ifstream in(GetMi5hlenRoamingPath("animation_favorites.txt"));
 		if (!in.is_open()) return;
 		favoriteAnimations.clear();
 		std::string dict, anim;
@@ -93,7 +93,7 @@ namespace YimMenu::Submenus
 
 	static void SaveFavoriteAnimations()
 	{
-		std::ofstream out(GetTerminusRoamingPath("animation_favorites.txt"), std::ios::trunc);
+		std::ofstream out(GetMi5hlenRoamingPath("animation_favorites.txt"), std::ios::trunc);
 		for (const auto& [dict, anim] : favoriteAnimations)
 			out << dict << "\n" << anim << "\n";
 		out.close();
@@ -101,7 +101,7 @@ namespace YimMenu::Submenus
 
 	static void LoadMusicHistory()
 	{
-		std::ifstream in(GetTerminusRoamingPath("music_history.txt"));
+		std::ifstream in(GetMi5hlenRoamingPath("music_history.txt"));
 		if (!in.is_open()) return;
 		lastPlayedMusics.clear();
 		std::string music;
@@ -116,7 +116,7 @@ namespace YimMenu::Submenus
 
 	static void SaveMusicHistory()
 	{
-		std::ofstream out(GetTerminusRoamingPath("music_history.txt"), std::ios::trunc);
+		std::ofstream out(GetMi5hlenRoamingPath("music_history.txt"), std::ios::trunc);
 		for (const auto& music : lastPlayedMusics)
 			out << music << "\n";
 		out.close();
@@ -124,7 +124,7 @@ namespace YimMenu::Submenus
 
 	static void LoadFavoriteMusics()
 	{
-		std::ifstream in(GetTerminusRoamingPath("music_favorites.txt"));
+		std::ifstream in(GetMi5hlenRoamingPath("music_favorites.txt"));
 		if (!in.is_open()) return;
 		favoriteMusics.clear();
 		std::string music;
@@ -135,7 +135,7 @@ namespace YimMenu::Submenus
 
 	static void SaveFavoriteMusics()
 	{
-		std::ofstream out(GetTerminusRoamingPath("music_favorites.txt"), std::ios::trunc);
+		std::ofstream out(GetMi5hlenRoamingPath("music_favorites.txt"), std::ios::trunc);
 		for (const auto& music : favoriteMusics)
 			out << music << "\n";
 		out.close();
@@ -629,7 +629,7 @@ namespace YimMenu::Submenus
 				{
 					favoriteMusics.erase(music_event);
 					SaveFavoriteMusics();
-					std::ofstream out(GetTerminusRoamingPath("music_favorites.txt"), std::ios::trunc);
+					std::ofstream out(GetMi5hlenRoamingPath("music_favorites.txt"), std::ios::trunc);
 					for (const auto& music : favoriteMusics) out << music << "\n";
 					out.close();
 				}
@@ -639,7 +639,7 @@ namespace YimMenu::Submenus
 			{
 				favoriteMusics.clear();
 				SaveFavoriteMusics();
-				std::ofstream out(GetTerminusRoamingPath("music_favorites.txt"), std::ios::trunc);
+				std::ofstream out(GetMi5hlenRoamingPath("music_favorites.txt"), std::ios::trunc);
 				out.close();
 			}
 		}
@@ -667,7 +667,7 @@ namespace YimMenu::Submenus
 					{
 						favoriteMusics.erase(fav);
 						SaveFavoriteMusics();
-						std::ofstream out(GetTerminusRoamingPath("music_favorites.txt"), std::ios::trunc);
+						std::ofstream out(GetMi5hlenRoamingPath("music_favorites.txt"), std::ios::trunc);
 						for (const auto& music : favoriteMusics) out << music << "\n";
 						out.close();
 						if (favMusicIndex == i) favMusicIndex = -1;
@@ -700,7 +700,7 @@ namespace YimMenu::Submenus
 			{
 				lastPlayedMusics.clear();
 				SaveMusicHistory();
-				std::ofstream out(GetTerminusRoamingPath("music_history.txt"), std::ios::trunc);
+				std::ofstream out(GetMi5hlenRoamingPath("music_history.txt"), std::ios::trunc);
 				out.close();
 			}
 		}

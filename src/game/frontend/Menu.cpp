@@ -64,14 +64,18 @@ namespace YimMenu
 					ImGui::SetNextWindowSize(ImVec2((float)width, (float)height), ImGuiCond_Once);
 				}
 
-				if (ImGui::Begin("##Terminus", nullptr,
+				if (ImGui::Begin("##Mi5hlenMenu", nullptr,
 					ImGuiWindowFlags_NoTitleBar |
 					ImGuiWindowFlags_NoCollapse |
 					ImGuiWindowFlags_AlwaysUseWindowPadding |
 					ImGuiWindowFlags_NoSavedSettings))
 				{
 					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
-					ImGui::Text("Terminus: b0rk3d V2.2");
+					ImGui::Text("Mi5hlen Menu");
+					ImGui::SameLine();
+					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.35f, 0.80f, 1.0f, 1.0f));
+					ImGui::Text("| Telegram: @Mi5hlen");
+					ImGui::PopStyleColor();
 					ImGui::PopStyleColor(); 
 
 					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.50f, 1.0f));
@@ -143,7 +147,7 @@ namespace YimMenu
 	void Menu::SetupFonts()
 	{
 		auto& IO       = ImGui::GetIO();
-		auto file_path = std::filesystem::path(std::getenv("appdata")) / "Terminus-b0rk3d" / "imgui.ini";
+		auto file_path = std::filesystem::path(std::getenv("appdata")) / "Mi5hlenMenu" / "imgui.ini";
 		static auto path = file_path.string();
 		IO.IniFilename   = path.c_str();
 		IO.LogFilename   = NULL;

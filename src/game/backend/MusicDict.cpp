@@ -16,7 +16,7 @@ namespace YimMenu
         if (!appdata) {
             return std::filesystem::current_path() / "MusicDict.json";
         }
-        std::filesystem::path dir = std::filesystem::path(appdata) / "Terminus-b0rk3d";
+        std::filesystem::path dir = std::filesystem::path(appdata) / "Mi5hlenMenu";
         
         std::filesystem::create_directories(dir); 
         

@@ -113,4 +113,4 @@ namespace YimMenu::Features
     };
 
     static SimpleIndianAttack _SimpleIndianAttack{"indianattack", "Indian Attack", "Spawns waves of Indian peds that attack the selected player."};
-}  //GrymsArchive
+}  // Mi5hlen

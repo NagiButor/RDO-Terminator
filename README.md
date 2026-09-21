@@ -1,136 +1,121 @@
-![b0rk3d V2 Banner](https://i.ibb.co/nsYcwJ5S/b0rk3d-V2-banner.png)
+# Mi5hlen Menu
 
-# Terminus: b0rk3d V2.2 *(formerly HorseMenu)*
+A powerful, community-driven mod menu for **Red Dead Redemption 2** and **Red Dead Online** by Rockstar Games.
+**Strictly for educational purposes.**
 
-A powerful, community-driven mod menu for **Red Dead Redemption 2** and **Red Dead Online** by Rockstar Games.  
-**Strictly for educational purposes.**  
+- **Author & maintainer:** Mi5hlen
+- **Telegram:** [@Mi5hlen](https://t.me/Mi5hlen) — support, updates & builds
+- Based on **Terminus / HorseMenu** (upstream: [YimMenu/HorseMenu](https://github.com/YimMenu/HorseMenu))
 
-Remember: This is based in BETA Code and may not function as intended. I am pretty much
-the sole tester for V2 So...
-
----
-
-## Why This Fork?
-
-- **Menu styling updates**
-- **Feature expansions & fixes**
-- **Add-ons & major UI improvements**
-- The name **b0rk3d V2** ensures there’s no mistaking this for the Master build!
+> This is a **BETA** build — some things may not work as intended. Bug reports and ideas are always welcome on Telegram.
 
 ---
 
 ## Getting Started
 
-1. **Download a popular injector** from GitHub and inject into `rdr2.exe`.
-2. Or, grab an all-in-one (AIO) package with the latest build and custom injector from [PlumbWick3d’s Discord](https://discord.gg/ycbDQGqx3Q).
-3. The new save settings folder is now located in: AppData\Roaming\Terminus-b0rk3d
-4. Inject at the main menu not "In-Game"
+1. **Grab a popular injector** from GitHub and inject the DLL into `rdr2.exe`.
+2. Inject **at the main menu**, not "in-game".
+3. Open / close the menu with **F5** or **INSERT**.
+4. Settings, logs and dictionaries are stored in: `%AppData%\Mi5hlenMenu`
 
-> **Need help?** Join the Discord for support, updates, and community mods!
+> **Need help?** Message me on Telegram: [@Mi5hlen](https://t.me/Mi5hlen)
 
 ---
 
-##  Features & Improvements
+## Features & Improvements
 
-| **Area**     | **What’s New in V2**                                                                                          |
-|--------------|---------------------------------------------------------------------------------------------------------------|
-| **GUI**      | Modern theming, theme editor/presets, resizable UI, color editor, placement saving, & menu toggle (F5/INSERT) |
+| **Area**     | **What's inside**                                                                                            |
+|--------------|--------------------------------------------------------------------------------------------------------------|
+| **GUI**      | Modern theming, theme editor/presets, resizable UI, color editor, placement saving, menu toggle (F5/INSERT)   |
 | **ESP**      | Modernized and fixed ESP overlay                                                                              |
-| **Self**     | Give all weapons/ammo, searchable animation dictionary, music player improvements                             |
+| **Self**     | Give all weapons/ammo, searchable animation dictionary, music player improvements                              |
 | **Teleport** | Teleport to Guarma, loading screen/reset toggles                                                              |
-| **Player**   | New “BoomPlus” tab for custom explosions, “BeatDown”/“Beat N Kick” events, Indian Attack Mode, Ride’em Cowboy |
-| **World**    | Reworked spawners, legendary presets, Kill’em All, Bodyguard system, save last 20 spawned peds                |
+| **Player**   | "BoomPlus" tab for custom explosions, "BeatDown"/"Beat N Kick" events, Indian Attack Mode, Ride'em Cowboy      |
+| **World**    | Reworked spawners, legendary presets, Kill'em All, Bodyguard system, save last 20 spawned peds                 |
 | **Recovery** | Give American Wild Flower collection                                                                          |
-| **Settings** | Customizable everything—menu, GUI, theming, and more!                                                         |
+| **Settings** | Customizable everything — menu, GUI, theming and more!                                                        |
 | **Other**    | AniDict.json / MusicDict.json creation for advanced users                                                     |
 
 ---
 
-##  V 2.2 Update
+## V 2.2 Update
 
-- **Scenario Player:** Added by *evl wayz*
-- **One Click Dailys:** Added by *GrymRpr/GrymsArchive*
-- **Train Speed:** Added by *GrymRpr/GrymsArchive*
-- **Old DeadEye Target select:** Added by *GrymRpr/GrymsArchive*
+- **Scenario Player** — added by *evl wayz*
+- **One Click Dailys** — added by *Mi5hlen*
+- **Train Speed** — added by *Mi5hlen*
+- **Old DeadEye Target select** — added by *Mi5hlen*
 
 ---
 
-=======
-##  V 2.1 Update
+## V 2.1 Update
 
-Fix's: Updated Companion, BodyGuard settings. Minor fix's to the variation logic.
-Reverted RemoteBolas.
+- Fixes: updated Companion and BodyGuard settings, minor variation-logic fixes, reverted RemoteBolas
+- **Added:** Perfect Animal/Pelt option
+- Spawn perfect dead animals
+- Poodle Fun in Boom Plus
+- More trains, direction control, and the ability to delete the trains you spawn
+- Now you can **GIVE the American Wild Flower Collection to others**
 
-**ADDED**
-Perfect Animal/Pelt option.
-Spawn Perfect dead animals (Me/GrymRpr)
-Poodle Fun in Boom Plus! (Me/GrymRpr)
-=======
-More Trains, Direction control and the ability to now delete the Trains you spawn. (Me/GrymRpr)
+---
 
-Now GIVE the American Wild Flower Collection to others!
-Thanks to Observed Cat AGAIN for another great addition! This makes #3!
-1: Old DeadEye 2: Helpful/Give others Collectables 3: American Wild Flower collection Added to Helpful/Collectables!
+## Building from source (Windows)
 
-##  Credits & Scripting Attribution
+**Requirements:** Visual Studio 2022 (MSVC x64), CMake 3.20+, Ninja.
+All third-party dependencies (imgui, minhook, nlohmann/json, AsyncLogger, Vulkan-Headers, RDR-Classes) are downloaded automatically by CMake via `FetchContent`.
 
-- **Upstream Base:**  
-  - [YimMenu/HorseMenu](https://github.com/YimMenu/HorseMenu) — The original foundation and codebase.
+```powershell
+# run from "x64 Native Tools Command Prompt for VS 2022"
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DFETCHCONTENT_UPDATES_DISCONNECTED=ON -S . -B build -G Ninja
+cmake --build build --target Mi5hlenMenu
+```
 
-- **Project Lead, Integration, Main Scripting & Fixes:**  
-  - [GrymRpr / GrymsArchive](https://github.com/GrymRpr/HorseMenu)  
-    - *Self/Weapons:* Give All Weapons & Ammo  
-    - *Self/Animations:* Searchable Animation Dictionary, last 20 used, music player overhaul, dictionary and loop toggle  
-    - *Teleport/Main:* Teleport to Guarma, loading screen/reset menu toggle  
-    - *Player:* "BoomPlus" (custom explosions), BeatDown/Beat N Kick, Ride'em Cowboy, Spank Dat Ass, Indian Attack Mode  
-    - *Player/Kick:* Population Reset improvements, Beat N Kick scripting  
-    - *World/Spawners:* Ped Spawner overhaul, Legendary presets, Kill'em All, BodyGuard system, save last 20 spawned peds  
-    - *Recovery:* Give American Wild Flower collection  
-    - *Settings/GUI:* ESP fixes, menu toggle system, menu theming, custom color editor, menu resizing & placement saving  
-    - *Misc:* BAT file and AniDict.json creation  
+**Result:** `build\Mi5hlenMenu.dll` — this is the file you inject into `rdr2.exe`.
+
+---
+
+## Credits & Scripting Attribution
+
+- **Upstream base:**
+  - [YimMenu/HorseMenu](https://github.com/YimMenu/HorseMenu) — the original foundation and codebase.
+
+- **Project lead, integration, main scripting & fixes:**
+  - **Mi5hlen** — Telegram: [@Mi5hlen](https://t.me/Mi5hlen)
+    - *Self/Weapons:* Give All Weapons & Ammo
+    - *Self/Animations:* Searchable Animation Dictionary, last 20 used, music player overhaul, dictionary and loop toggle
+    - *Teleport/Main:* Teleport to Guarma, loading screen/reset menu toggle
+    - *Player:* "BoomPlus" (custom explosions), BeatDown/Beat N Kick, Ride'em Cowboy, Spank Dat Ass, Indian Attack Mode
+    - *Player/Kick:* Population Reset improvements, Beat N Kick scripting
+    - *World/Spawners:* Ped Spawner overhaul, Legendary presets, Kill'em All, BodyGuard system, save last 20 spawned peds
+    - *Recovery:* Give American Wild Flower collection
+    - *Settings/GUI:* ESP fixes, menu toggle system, menu theming, custom color editor, menu resizing & placement saving
+    - *Misc:* BAT file and AniDict.json creation
     - *V2.2 Additions:* One Click Dailys, Train Speed, Old DeadEye Target select
 
-- **PlumbWick3d:**  
-    - Provided the custom command-line injector used in the AIO package  
-    - Maintains [Wicked Menu Official Discord](https://discord.gg/ycbDQGqx3Q) for RDR2 & GTAV modding  
-    - Community support, testing, and distribution
-
-- **MaestroDelFuego:**  
-    - Inspiration for the V2 Theme Editor & Preset system  
-    - "Why not just add the ability to do it?" — the reason for the theme editor
-
-- **Observed Cat:**  
-    - Scripted the "Old deadEye" section  
-    - Added the feature to give collectibles to other players (Players/Helpful)
-
-- **evl wayz:**  
-    - Suggested and helped with GUI re-size feature  
+- **evl wayz:**
+    - Suggested and helped with GUI re-size feature
     - *V2.2 Addition:* Scenario Player
 
-- **Special Thanks:**  
-    - All staff and members of the HorseMenu/Terminus and Wicked Menu Discord communities, for ideas, bug reports, and inspiration!
+- **Observed Cat:**
+    - Scripted the "Old deadEye" section
+    - Added the feature to give collectibles to other players (Players/Helpful)
+
+- **MaestroDelFuego:**
+    - Inspiration for the V2 Theme Editor & Preset system
+
+- **PlumbWick3d:**
+    - Provided the custom command-line injector used in the AIO package
+    - Maintains [Wicked Menu Official Discord](https://discord.gg/ycbDQGqx3Q) for RDR2 & GTAV modding
+
+- **Special Thanks:**
+    - All staff and members of the HorseMenu/Terminus and Wicked Menu Discord communities, for ideas, bug reports and inspiration!
 
 ---
 
-##  Screenshots / UI Preview
+## Community & Support
 
-![UI Design](https://i.ibb.co/S7N98Y1M/b0rk3d-V2-Menu.png)
-
----
-
-##  Project Structure
-
-- `core/`   – Essential features & base functionality  
-- `game/`   – Game-specific implementations  
-- `util/`   – Utility functions & helpers  
+- **Telegram:** [@Mi5hlen](https://t.me/Mi5hlen) — the fastest way to reach me: support, updates, custom builds
+- **Discord:** [Wicked Menu Official](https://discord.gg/ycbDQGqx3Q) — RDR2 & GTAV modding community
 
 ---
 
-##  Community & Support
-
-- **Discord:** [Wicked Menu Official (PlumbWick3d)](https://discord.gg/ycbDQGqx3Q)  
-  Your place for RDR2 & GTAV modding, help, and the latest releases.
-
----
-
-**“Made with passion, powered by the community, and always evolving.”**
+**"Made with passion, powered by the community, and always evolving."**
