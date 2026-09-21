@@ -153,18 +153,31 @@ namespace YimMenu::Features::AttackWaves
         return spawn_count;
     }
 
-    // Same cleanup logic as IndianAttack: dead/despawned attackers are deleted
-    // from the list right away. The corpse itself is NOT deleted -- since the
-    // ped is a regular entity it stays in the world like a typical RDO corpse
-    // until the game cleans it up on its own (players can loot/skin it).
+    // Same tracking as IndianAttack: dead/despawned attackers are only removed
+    // from the list -- their corpses are never deleted, so they stay in the
+    // world like typical RDO corpses (lootable / skinnable) until the game
+    // cleans them up on its own.
     void Cleanup(std::vector<int>& spawned, bool delete_all)
     {
         auto it = spawned.begin();
         while (it != spawned.end())
         {
-            if (delete_all || !ENTITY::DOES_ENTITY_EXIST(*it) || ENTITY::IS_ENTITY_DEAD(*it))
+            const bool exists = ENTITY::DOES_ENTITY_EXIST(*it);
+
+            if (delete_all)
             {
-                PED::DELETE_PED(&(*it));
+                // feature turned off: remove only the living ones (so they stop
+                // attacking); dead ones stay as normal corpses
+                if (exists && !ENTITY::IS_ENTITY_DEAD(*it))
+                    PED::DELETE_PED(&(*it));
+                it = spawned.erase(it);
+            }
+            else if (!exists || ENTITY::IS_ENTITY_DEAD(*it))
+            {
+                // NOTE: never DELETE_PED a dead attacker -- that is exactly what
+                // made corpses vanish instantly. Just stop tracking it; the
+                // corpse stays in the world like a typical RDO corpse
+                // (lootable / skinnable) until the game cleans it up itself.
                 it = spawned.erase(it);
             }
             else

@@ -20,14 +20,27 @@ namespace YimMenu::Features
 
     static std::vector<int> indian_index;
 
-    static void CleanupIndians()
+    static void CleanupIndians(bool delete_all)
     {
         auto it = indian_index.begin();
         while (it != indian_index.end())
         {
-            if (!ENTITY::DOES_ENTITY_EXIST(*it) || ENTITY::IS_ENTITY_DEAD(*it))
+            const bool exists = ENTITY::DOES_ENTITY_EXIST(*it);
+
+            if (delete_all)
             {
-                PED::DELETE_PED(&(*it));
+                // feature turned off: remove only the living ones (so they stop
+                // attacking); dead ones stay as normal corpses
+                if (exists && !ENTITY::IS_ENTITY_DEAD(*it))
+                    PED::DELETE_PED(&(*it));
+                it = indian_index.erase(it);
+            }
+            else if (!exists || ENTITY::IS_ENTITY_DEAD(*it))
+            {
+                // NOTE: never DELETE_PED a dead indian -- that is exactly what
+                // made corpses vanish instantly. Just stop tracking it; the
+                // corpse stays in the world like a typical RDO corpse
+                // (lootable / skinnable) until the game cleans it up itself.
                 it = indian_index.erase(it);
             }
             else
@@ -98,14 +111,14 @@ namespace YimMenu::Features
 
             if (!player_ped.IsValid() || player_ped.GetHealth() <= 0)
             {
-                CleanupIndians();
+                CleanupIndians(false);
                 return;
             }
 
             if (indian_index.empty())
                 SpawnIndians(target_player);
 
-            CleanupIndians();
+            CleanupIndians(false);
         }
 
         void OnEnable() override
@@ -115,7 +128,7 @@ namespace YimMenu::Features
 
         void OnDisable() override
         {
-            CleanupIndians();
+            CleanupIndians(true);
             Notifications::Show("Indian Attack", std::string("Cleared Indians (target: ") + Players::GetSelected().GetName() + ")", NotificationType::Info);
         }
     };
