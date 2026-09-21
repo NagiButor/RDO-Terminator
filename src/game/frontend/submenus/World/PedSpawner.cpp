@@ -6,6 +6,7 @@
 #include "game/backend/ScriptMgr.hpp"
 #include "game/backend/Self.hpp"
 #include "game/frontend/items/Items.hpp"
+#include "game/frontend/submenus/Player/NpcAttack.hpp"
 #include "game/rdr/Enums.hpp"
 #include "game/rdr/Natives.hpp"
 #include "game/rdr/data/PedModels.hpp"
@@ -49,10 +50,14 @@ namespace YimMenu::Submenus
 
     static int PedSpawnerInputCallback(ImGuiInputTextCallbackData* data)
     {
+        // transliterate RU-layout typing to Latin on the fly (font has no Cyrillic glyphs)
+        if (Features::NpcAttackOptions::ApplyRuFixToImGuiInput(data))
+            return 0;
+
         if (data->EventFlag == ImGuiInputTextFlags_CallbackCompletion)
         {
             std::string newText{};
-            std::string inputLower = data->Buf;
+            std::string inputLower = Features::NpcAttackOptions::FixRuKeyboardLayout(data->Buf);
             std::transform(inputLower.begin(), inputLower.end(), inputLower.begin(), ::tolower);
             for (const auto& [key, model] : Data::g_PedModels)
             {
@@ -2862,7 +2867,7 @@ static void ApplyBodyGuardSettings(YimMenu::Ped& ped)
             ImGui::EndCombo();
         }
 
-        InputTextWithHint("##pedmodel", "Ped Model", &pedModelBuffer, ImGuiInputTextFlags_CallbackCompletion, nullptr, PedSpawnerInputCallback).Draw();
+        InputTextWithHint("##pedmodel", "Ped Model", &pedModelBuffer, ImGuiInputTextFlags_CallbackCompletion | ImGuiInputTextFlags_CallbackEdit, nullptr, PedSpawnerInputCallback).Draw();
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Press Tab to auto fill or pick a Legendary Preset above.");
 
@@ -2883,7 +2888,7 @@ static void ApplyBodyGuardSettings(YimMenu::Ped& ped)
 
         if (ImGui::BeginPopup("##ped_search_popup", ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_ChildWindow))
         {
-            std::string bufferLower = pedModelBuffer;
+            std::string bufferLower = Features::NpcAttackOptions::FixRuKeyboardLayout(pedModelBuffer);
             std::transform(bufferLower.begin(), bufferLower.end(), bufferLower.begin(), ::tolower);
             for (const auto& [hash, model] : Data::g_PedModels)
             {

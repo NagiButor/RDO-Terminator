@@ -6,6 +6,15 @@
 
 namespace YimMenu::Features::AttackWaves
 {
+    // Hard limits: every spawned ped is a networked object, so a burst of
+    // clones is exactly what kicks the local player into a solo session.
+    // Kept at the same scale as the other attacks (Indian/Army/Police use 10).
+    inline constexpr int kMaxLiveAttackers = 10;
+    inline constexpr int kMaxSpawnPerCall  = 10;
+    // Single-spawn buffer: at most this many living manual NPCs.
+    // When full, the oldest one is auto-removed to make room.
+    inline constexpr int kMaxManualAttackers = 5;
+
     // Where the attackers should spawn relative to the target
     enum class SpawnSide
     {
@@ -40,4 +49,9 @@ namespace YimMenu::Features::AttackWaves
     // When delete_all is set, living attackers are removed as well
     // (used when the feature gets turned off).
     void Cleanup(std::vector<int>& spawned, bool delete_all = false);
+
+    // Auto-cleanup: deletes the oldest living attacker(s) so a new spawn
+    // never pushes the session over the networked-object budget.
+    // Dead/despawned handles are just forgotten (corpses stay in the world).
+    void RemoveOldest(std::vector<int>& spawned, int count = 1);
 }

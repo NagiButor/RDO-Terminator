@@ -2,7 +2,9 @@
 #include "game/frontend/items/Items.hpp"
 #include "game/features/Features.hpp"
 #include "game/frontend/submenus/Player/NpcAttack.hpp"
+#include "game/backend/FiberPool.hpp"
 #include "game/rdr/data/PedModels.hpp"
+#include "game/rdr/data/WeaponTypes.hpp"
 #include "util/Joaat.hpp"
 
 #include <algorithm>
@@ -14,6 +16,18 @@ namespace YimMenu::Submenus {
         bool IsPedModelInList(const std::string& model)
         {
             return Data::g_PedModels.contains(Joaat(model));
+        }
+
+        bool IsWeaponInList(const std::string& weapon)
+        {
+            if (weapon.empty())
+                return true; // empty = fists / claws, always valid
+            for (const char* entry : Data::g_WeaponTypes)
+            {
+                if (entry && weapon == entry)
+                    return true;
+            }
+            return false;
         }
 
         std::string ToLowerCopy(std::string value)
@@ -68,8 +82,10 @@ namespace YimMenu::Submenus {
         auto npc_attack = std::make_shared<Group>("Npc Attack (config)", 1);
         npc_attack->AddItem(std::make_shared<ImGuiItem>([] {
             // --- model input with a live "closest matches" dropdown, same as World -> Spawner -> Ped ---
+            // CallbackEdit transliterates RU-layout typing to Latin on the fly (font has no Cyrillic glyphs)
             InputTextWithHint("##npcmodel", "model, e.g. A_C_Bear_01 (click / type to see matches)",
-                &Features::NpcAttackOptions::ConfiguredModel(), ImGuiInputTextFlags_CallbackCompletion,
+                &Features::NpcAttackOptions::ConfiguredModel(),
+                ImGuiInputTextFlags_CallbackCompletion | ImGuiInputTextFlags_CallbackEdit,
                 nullptr, Features::NpcAttackOptions::ModelInputCallback)
                 .Draw();
 
@@ -94,7 +110,7 @@ namespace YimMenu::Submenus {
 
             if (ImGui::BeginPopup("##npc_search_popup", ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_ChildWindow))
             {
-                const std::string buffer_lower = ToLowerCopy(buffer);
+                const std::string buffer_lower = ToLowerCopy(Features::NpcAttackOptions::FixRuKeyboardLayout(buffer));
                 for (const auto& [hash, model] : Data::g_PedModels)
                 {
                     if (!model)
@@ -116,14 +132,73 @@ namespace YimMenu::Submenus {
                 ImGui::EndPopup();
             }
 
-            ImGui::SliderInt("Count", &Features::NpcAttackOptions::ConfiguredCount(), 1, 20);
+            ImGui::SliderInt("Count", &Features::NpcAttackOptions::ConfiguredCount(), 1, 10);
             ImGui::SliderFloat("Distance", &Features::NpcAttackOptions::ConfiguredDistance(), 2.f, 150.f, "%.0f m");
+
+            // --- weapon input with a live "closest matches" dropdown, same UX as the model field ---
+            InputTextWithHint("##npcweapon", "weapon, e.g. WEAPON_REVOLVER_CATTLEMAN (empty = none)",
+                &Features::NpcAttackOptions::ConfiguredWeapon(),
+                ImGuiInputTextFlags_CallbackCompletion | ImGuiInputTextFlags_CallbackEdit,
+                nullptr, Features::NpcAttackOptions::WeaponInputCallback)
+                .Draw();
+
+            const bool is_weapon_active = ImGui::IsItemActive();
+            const std::string weapon_buffer = Features::NpcAttackOptions::ConfiguredWeapon();
+
+            if (!IsWeaponInList(weapon_buffer))
+            {
+                if (is_weapon_active)
+                    ImGui::OpenPopup("##npc_weapon_popup");
+            }
+
+            const ImVec2 weapon_pos  = ImGui::GetItemRectMin();
+            const ImVec2 weapon_size = ImGui::GetItemRectSize();
+
+            ImGui::SetNextWindowPos({weapon_pos.x, weapon_pos.y + weapon_size.y});
+            ImGui::SetNextWindowSize({weapon_size.x, 0});
+            ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, max_dropdown_height));
+
+            if (ImGui::BeginPopup("##npc_weapon_popup", ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_ChildWindow))
+            {
+                const std::string weapon_lower = ToLowerCopy(Features::NpcAttackOptions::FixRuKeyboardLayout(weapon_buffer));
+                for (const char* weapon : Data::g_WeaponTypes)
+                {
+                    if (!weapon)
+                        continue;
+
+                    std::string entry_lower = weapon;
+                    std::transform(entry_lower.begin(), entry_lower.end(), entry_lower.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+                    if (!weapon_lower.empty() && entry_lower.find(weapon_lower) == std::string::npos)
+                        continue;
+
+                    if (ImGui::Selectable(weapon))
+                    {
+                        Features::NpcAttackOptions::ConfiguredWeapon() = weapon;
+                        ImGui::CloseCurrentPopup();
+                    }
+                }
+                if (!is_weapon_active && !ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
+                    ImGui::CloseCurrentPopup();
+                ImGui::EndPopup();
+            }
 
             int side = (int)Features::NpcAttackOptions::ConfiguredSide();
             if (ImGui::Combo("Spawn point", &side, "Around the player\0In front of the player\0Behind the player\0"))
                 Features::NpcAttackOptions::ConfiguredSideIndex() = side;
 
+            if (ImGui::Button("Spawn One NPC", ImVec2(-1, 0)))
+                FiberPool::Push([] {
+                    Features::NpcAttackOptions::SpawnSingleNow();
+                });
+
+            if (ImGui::Button("Clear NPCs", ImVec2(-1, 0)))
+                FiberPool::Push([] {
+                    Features::NpcAttackOptions::ClearAllNow();
+                });
+
             ImGui::TextDisabled("Bear = A_C_Bear_01 | Cougar = A_C_Cougar_01 | Wolf = A_C_Wolf");
+            ImGui::TextDisabled("One click = one NPC (2s cooldown, max 5 manual, oldest auto-removed).");
+            ImGui::TextDisabled("Typing in RU layout auto-converts to EN. Leave weapon empty for claws / fists.");
             ImGui::TextDisabled("Turn on \"Npc Attack\" in the Plus tab to use these settings.");
         }));
 

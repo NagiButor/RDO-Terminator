@@ -98,6 +98,19 @@ namespace YimMenu::Features::AttackWaves
         if (!ENTITY::DOES_ENTITY_EXIST(target_handle) || config.models.empty() || config.count <= 0)
             return 0;
 
+        // Network safety: every ped is a replicated object. Clean up dead handles
+        // first, then clamp the wave so one call can never flood the session
+        // (flooding = clone spam = disconnect into a solo lobby).
+        Cleanup(spawned);
+
+        int wanted = std::min(config.count, kMaxSpawnPerCall);
+        const int live = (int)spawned.size();
+        if (live >= kMaxLiveAttackers)
+            return 0;
+        wanted = std::min(wanted, kMaxLiveAttackers - live);
+        if (wanted <= 0)
+            return 0;
+
         // Pre-request the models the same way IndianAttack does. Ped::Create on
         // its own only waits ~30 ticks for a model to stream in, which is not
         // enough for models that were never loaded before (e.g. the knife-wave
@@ -127,8 +140,9 @@ namespace YimMenu::Features::AttackWaves
         std::uniform_real_distribution<float> angle_dist(0.f, 6.2831853f);
         std::uniform_real_distribution<float> radius_dist(config.distance * 0.6f, config.distance);
 
-        for (int i = 0; i < config.count; ++i)
+        for (int i = 0; i < wanted; ++i)
         {
+            ScriptMgr::Yield(); // spread networked spawns across ticks, never a single-tick burst
             const char* model_name = PickRandom(config.models);
             if (!model_name)
                 continue;
@@ -223,6 +237,24 @@ namespace YimMenu::Features::AttackWaves
             }
             else
                 ++it;
+        }
+    }
+
+    void RemoveOldest(std::vector<int>& spawned, int count)
+    {
+        for (int n = 0; n < count && !spawned.empty(); ++n)
+        {
+            // oldest entry first; dead/despawned handles are just forgotten
+            // (their corpses stay), only a living attacker is actually deleted
+            auto it = spawned.begin();
+            while (it != spawned.end() && (!ENTITY::DOES_ENTITY_EXIST(*it) || ENTITY::IS_ENTITY_DEAD(*it)))
+                it = spawned.erase(it);
+
+            if (it == spawned.end())
+                return;
+
+            PED::DELETE_PED(&(*it));
+            spawned.erase(it);
         }
     }
 }

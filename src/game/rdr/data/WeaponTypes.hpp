@@ -2,7 +2,7 @@
 
 namespace YimMenu::Data
 {
-	const char* g_WeaponTypes[] = {
+	inline const char* g_WeaponTypes[] = {
 		"WEAPON_BOW",
 		"WEAPON_BOW_IMPROVED",
 		"WEAPON_FISHINGROD",
