@@ -1,6 +1,7 @@
 #include "BoomPlus.hpp"
 #include "game/frontend/items/Items.hpp"
 #include "game/features/Features.hpp"
+#include "game/features/players/toxic/LightningStrike.hpp"
 #include "game/frontend/submenus/Player/NpcAttack.hpp"
 #include "game/backend/FiberPool.hpp"
 #include "game/rdr/data/PedModels.hpp"
@@ -75,6 +76,8 @@ namespace YimMenu::Submenus {
         plus->AddItem(std::make_shared<BoolCommandItem>("policeattack"_J));
         plus->AddItem(std::make_shared<BoolCommandItem>("wolfattack"_J));
         plus->AddItem(std::make_shared<BoolCommandItem>("npcattack"_J));
+        plus->AddItem(std::make_shared<BoolCommandItem>("cavalryattack"_J, "Cavalry Attack"));
+        plus->AddItem(std::make_shared<BoolCommandItem>("maximwagonattack"_J, "Maxim Wagon"));
         //plus->AddItem(std::make_shared<BoolCommandItem>("zombieslogging"_J));
         plus->AddItem(std::make_shared<BoolCommandItem>("hardmode"_J));
 
@@ -134,6 +137,7 @@ namespace YimMenu::Submenus {
 
             ImGui::SliderInt("Count", &Features::NpcAttackOptions::ConfiguredCount(), 1, 10);
             ImGui::SliderFloat("Distance", &Features::NpcAttackOptions::ConfiguredDistance(), 2.f, 150.f, "%.0f m");
+            ImGui::SliderInt("HP", &Features::NpcAttackOptions::ConfiguredHealth(), 0, 5000, "%d (0 = default)");
 
             // --- weapon input with a live "closest matches" dropdown, same UX as the model field ---
             InputTextWithHint("##npcweapon", "weapon, e.g. WEAPON_REVOLVER_CATTLEMAN (empty = none)",
@@ -203,6 +207,21 @@ namespace YimMenu::Submenus {
         }));
 
         menu->AddItem(explosions);
+
+        // Real lightning bolt: flash + thunder + damage at a random point around the selected player
+        auto lightning = std::make_shared<Group>("Lightning (config)", 1);
+        lightning->AddItem(std::make_shared<ImGuiItem>([] {
+            ImGui::SliderFloat("Distance", &Features::LightningOptions::StrikeDistance(), 0.f, 150.f, "%.0f m");
+
+            if (ImGui::Button("Strike Lightning", ImVec2(-1, 0)))
+                FiberPool::Push([] {
+                    Features::LightningOptions::StrikeNow();
+                });
+
+            ImGui::TextDisabled("0 m = right on target. Also works via the Lightning button above.");
+        }));
+        menu->AddItem(lightning);
+
         menu->AddItem(plus);
         menu->AddItem(npc_attack);
 

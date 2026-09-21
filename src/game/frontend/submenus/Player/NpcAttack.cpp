@@ -33,6 +33,7 @@ namespace YimMenu::Features
         static std::string s_weapon = "";
         static int s_count    = 3;
         static float s_distance = 25.f;
+        static int s_health   = 0;
         static int s_side_index = 0;
 
         // persistent storage for BuildConfig() string views:
@@ -53,6 +54,11 @@ namespace YimMenu::Features
         float& ConfiguredDistance()
         {
             return s_distance;
+        }
+
+        int& ConfiguredHealth()
+        {
+            return s_health;
         }
 
         int& ConfiguredSideIndex()
@@ -142,6 +148,7 @@ namespace YimMenu::Features
             config.count    = std::max(1, count);
             config.distance = std::max(1.f, s_distance);
             config.side     = ConfiguredSide();
+            config.health   = s_health > 0 ? (float)s_health : 0.f; // 0 = game default
             config.move_rate = 1.9f;
             config.accuracy  = 80.f;
             return config;

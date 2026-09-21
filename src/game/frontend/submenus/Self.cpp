@@ -1,6 +1,7 @@
 #include "Self.hpp"
 
 #include "game/features/self/GiveAllFunctions.hpp"
+#include "core/frontend/Notifications.hpp"
 #include "core/commands/BoolCommand.hpp"
 #include "core/commands/Commands.hpp"
 #include "core/commands/IntCommand.hpp"
@@ -798,6 +799,79 @@ namespace YimMenu::Submenus
 		}));
 
 		weapons->AddItem(weaponsGlobalsGroup);
+
+		auto rareWeaponsGroup = std::make_shared<Group>("Rare & Scopes");
+		rareWeaponsGroup->AddItem(std::make_shared<ImGuiItem>([] {
+			if (ImGui::Button("Give M1899 Pistol", ImVec2(-1, 0)))
+			{
+				FiberPool::Push([] {
+					const int ped = YimMenu::Self::GetPed().GetHandle();
+					if (!ENTITY::DOES_ENTITY_EXIST(ped))
+						return;
+					WEAPON::GIVE_WEAPON_TO_PED(ped, "WEAPON_PISTOL_M1899"_J, 200, true, false, 0, true, 0.5f, 1.0f, 0x2CD419DC, true, 0.0f, false);
+					Notifications::Show("Weapons", "M1899 Pistol added.", NotificationType::Success);
+				});
+			}
+			if (ImGui::Button("Give Midnight's Pistol", ImVec2(-1, 0)))
+			{
+				FiberPool::Push([] {
+					const int ped = YimMenu::Self::GetPed().GetHandle();
+					if (!ENTITY::DOES_ENTITY_EXIST(ped))
+						return;
+					WEAPON::GIVE_WEAPON_TO_PED(ped, "WEAPON_PISTOL_MAUSER_DRUNK"_J, 200, true, false, 0, true, 0.5f, 1.0f, 0x2CD419DC, true, 0.0f, false);
+					Notifications::Show("Weapons", "Midnight's Pistol added.", NotificationType::Success);
+				});
+			}
+
+			ImGui::Separator();
+
+			if (ImGui::Button("Remove sniper scopes (iron sights)", ImVec2(-1, 0)))
+			{
+				FiberPool::Push([] {
+					const int ped = YimMenu::Self::GetPed().GetHandle();
+					if (!ENTITY::DOES_ENTITY_EXIST(ped))
+						return;
+
+					// scope components sold for these rifles (see catalog_sp.ymt):
+					// COMPONENT_RIFLE_SCOPE02/03/04, COMPONENT_SCOPE_NONE = iron sights
+					static constexpr Hash kRifles[] = {
+						"WEAPON_SNIPERRIFLE_CARCANO"_J,
+						"WEAPON_SNIPERRIFLE_ROLLINGBLOCK"_J,
+					};
+					static constexpr Hash kScopes[] = {
+						"COMPONENT_RIFLE_SCOPE02"_J,
+						"COMPONENT_RIFLE_SCOPE03"_J,
+						"COMPONENT_RIFLE_SCOPE04"_J,
+					};
+
+					int changed = 0;
+					for (Hash rifle : kRifles)
+					{
+						if (!WEAPON::HAS_PED_GOT_WEAPON(ped, rifle, 0, false))
+							continue;
+
+						for (Hash scope : kScopes)
+						{
+							if (WEAPON::_HAS_PED_GOT_WEAPON_COMPONENT(ped, scope, rifle))
+							{
+								WEAPON::_REMOVE_WEAPON_COMPONENT_FROM_PED(ped, scope, rifle);
+								++changed;
+							}
+						}
+						// equip the "no scope" component so the rifle keeps iron sights
+						WEAPON::_GIVE_WEAPON_COMPONENT_TO_ENTITY(ped, "COMPONENT_SCOPE_NONE"_J, rifle, true);
+						++changed;
+					}
+
+					if (changed > 0)
+						Notifications::Show("Weapons", "Scopes removed, iron sights on.", NotificationType::Success);
+					else
+						Notifications::Show("Weapons", "Own a Carcano or Rolling Block first.", NotificationType::Error);
+				});
+			}
+			ImGui::TextDisabled("Scopes: needs the rifle owned. M1899 works via Give All too.");
+		}));
+		weapons->AddItem(rareWeaponsGroup);
 
 		weapons->AddItem(std::make_shared<ImGuiItem>([] {
 			ImGui::SeparatorText("Old Deadeye");

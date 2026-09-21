@@ -99,6 +99,7 @@ namespace YimMenu::Features::NpcAttackOptions
     std::string& ConfiguredModel();
     int& ConfiguredCount();
     float& ConfiguredDistance();
+    int& ConfiguredHealth(); // 0 = keep the game default, >0 = HP given to every spawned NPC
     int& ConfiguredSideIndex();            // 0 = around the player, 1 = in front, 2 = behind
     AttackWaves::SpawnSide ConfiguredSide(); // resolved spawn side used by the feature
 
