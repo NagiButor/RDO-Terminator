@@ -2,11 +2,13 @@
 #include "core/frontend/Notifications.hpp"
 #include "core/hooking/DetourHook.hpp"
 #include "core/misc/RateLimiter.hpp"
+#include "game/backend/AttackLog.hpp"
 #include "game/backend/Players.hpp"
 #include "game/backend/Protections.hpp"
 #include "game/backend/Self.hpp"
 #include "game/backend/PlayerData.hpp"
 #include "game/hooks/Hooks.hpp"
+#include "game/hooks/Protections/AntiCrash.hpp"
 #include "game/rdr/data/StableEvents.hpp"
 #include "game/rdr/data/TickerEvents.hpp"
 
@@ -15,6 +17,7 @@
 
 namespace YimMenu::Features
 {
+	extern BoolCommand _AttackLogFile;
 	BoolCommand _LogScriptEvents("logtses", "Log Script Events", "Log script events");
 	BoolCommand _BlockHonorEvent("blockhonormanipulation", "Block Honor Event", "Blocks all honor manipulation events", true);
 	BoolCommand _BlockDefensive("blockdefensive", "Block Force Defensive", "Blocks all force defensive events", true);
@@ -31,6 +34,15 @@ namespace YimMenu::Hooks
 {
 	bool Protections::HandleScriptedGameEvent(CScriptedGameEvent* event, CNetGamePlayer* src, CNetGamePlayer* dst)
 	{
+		// flood gate: script-event spam is how crash menus knock players out
+		if (src && !::Protections::AntiCrash::handleEvent((int)event->m_Data[0], src->m_PlayerIndex))
+		{
+			if (Features::_AttackLogFile.GetState())
+				AttackLog::Write("CRASH_ATTEMPT", src->GetName(), "script event flood, event dropped and sender flagged");
+			Player(src).AddDetection(Detection::TRIED_CRASH_PLAYER);
+			return true;
+		}
+
 		if (Features::_LogScriptEvents.GetState())
 		{
 			std::string script_args = "{ ";
@@ -58,6 +70,8 @@ namespace YimMenu::Hooks
 			if (event->m_Data[4] == 2 && Features::_BlockHonorEvent.GetState())
 			{
 				Notifications::Show("Protections", std::format("Blocked honor manipulation from {}", src->GetName()), NotificationType::Warning);
+				if (Features::_AttackLogFile.GetState())
+					AttackLog::Write("SCRIPT_BLOCK", src->GetName(), "blocked honor manipulation");
 				return true;
 			}
 			break;
@@ -67,6 +81,8 @@ namespace YimMenu::Hooks
 			if (event->m_Data[8] == 2 && Features::_BlockDefensive.GetState())
 			{
 				Notifications::Show("Protections", std::format("Blocked force defensive mode from {}", src->GetName()), NotificationType::Warning);
+				if (Features::_AttackLogFile.GetState())
+					AttackLog::Write("SCRIPT_BLOCK", src->GetName(), "blocked force defensive mode");
 				return true;
 			}
 			break;
@@ -76,6 +92,8 @@ namespace YimMenu::Hooks
 			if (event->m_Data[1] == Self::GetPlayer().GetId() && Features::_BlockOffensive.GetState())
 			{
 				Notifications::Show("Protections", std::format("Blocked force offensive mode from {}", src->GetName()), NotificationType::Warning);
+				if (Features::_AttackLogFile.GetState())
+					AttackLog::Write("SCRIPT_BLOCK", src->GetName(), "blocked force offensive mode");
 				return true;
 			}
 			break;
@@ -85,6 +103,8 @@ namespace YimMenu::Hooks
 			if (event->m_Data[11] && event->m_Data[4] == 2 || event->m_Data[4] == 3 && Features::_BlockPressCharges.GetState())
 			{
 				Notifications::Show("Protections", std::format("Blocked press charges from {}", src->GetName()), NotificationType::Warning);
+				if (Features::_AttackLogFile.GetState())
+					AttackLog::Write("SCRIPT_BLOCK", src->GetName(), "blocked press charges");
 				return true;
 			}
 			break;
@@ -94,11 +114,15 @@ namespace YimMenu::Hooks
 			if (event->m_Data[4] == 3 && Features::_BlockStartParlay.GetState())
 			{
 				Notifications::Show("Protections", std::format("Blocked start parlay from {}", src->GetName()), NotificationType::Warning);
+				if (Features::_AttackLogFile.GetState())
+					AttackLog::Write("SCRIPT_BLOCK", src->GetName(), "blocked start parlay");
 				return true;
 			}
 			if (event->m_Data[4] == 5 && Features::_BlockEndParlay.GetState())
 			{
 				Notifications::Show("Protections", std::format("Blocked end parlay from {}", src->GetName()), NotificationType::Warning);
+				if (Features::_AttackLogFile.GetState())
+					AttackLog::Write("SCRIPT_BLOCK", src->GetName(), "blocked end parlay");
 				return true;
 			}
 			break;
@@ -110,6 +134,8 @@ namespace YimMenu::Hooks
 				if (Player(src).GetData().m_TickerMessageRateLimit.ExceededLastProcess())
 				{
 					LOGF(NET_EVENT, WARNING, "Blocked ticker spam ({}) from {}", event->m_Data[4], src->GetName());
+					if (Features::_AttackLogFile.GetState())
+						AttackLog::Write("SCRIPT_BLOCK", src->GetName(), "blocked ticker spam");
 				}
 				return true;
 			}
@@ -124,6 +150,8 @@ namespace YimMenu::Hooks
 				        src->GetName(),
 				        Data::g_StableMountEvent[event->m_Data[4]].second),
 				    NotificationType::Warning);
+				if (Features::_AttackLogFile.GetState())
+					AttackLog::Write("SCRIPT_BLOCK", src->GetName(), "blocked stable event");
 				return true;
 			}
 			break;

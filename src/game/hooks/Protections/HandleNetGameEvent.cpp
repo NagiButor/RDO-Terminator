@@ -1,5 +1,6 @@
 #include "core/commands/BoolCommand.hpp"
 #include "core/hooking/DetourHook.hpp"
+#include "game/backend/AttackLog.hpp"
 #include "game/backend/PlayerData.hpp"
 #include "game/backend/Protections.hpp"
 #include "game/backend/Self.hpp"
@@ -37,6 +38,7 @@ namespace YimMenu::Features
 	BoolCommand _BlockPtfx("blockptfx", "Block PTFX", "Blocks all particle effect events", true);
 	BoolCommand _BlockClearTasks("blockclearpedtasks", "Block Clear Tasks", "Blocks all clear ped tasks events", true);
 	BoolCommand _BlockScriptCommand("blockscriptcommand", "Block Remote Native Calls", "Blocks all remote native call events", true);
+	BoolCommand _AttackLogFile("attacklogfile", "Attack Log File", "Writes incoming attacks to attacks.log", true);
 }
 
 namespace YimMenu::Hooks
@@ -105,26 +107,47 @@ namespace YimMenu::Hooks
 			auto net_id = new_buffer.Read<uint16_t>(13);
 			if (auto object = Pointers.GetNetObjectById(net_id))
 			{
-				if (!IsVehicleType((NetObjType)object->m_ObjectType))
-				{
-					LOG(WARNING) << "Blocked mismatched destroy vehicle lock event entity from " << sourcePlayer->GetName();
-					Player(sourcePlayer).AddDetection(Detection::TRIED_CRASH_PLAYER);
+			if (!IsVehicleType((NetObjType)object->m_ObjectType))
+			{
+				LOG(WARNING) << "Blocked mismatched destroy vehicle lock event entity from " << sourcePlayer->GetName();
+				if (Features::_AttackLogFile.GetState())
+					AttackLog::Write("CRASH_ATTEMPT", sourcePlayer->GetName(), "mismatched destroy vehicle lock entity, blocked");
+				Player(sourcePlayer).AddDetection(Detection::TRIED_CRASH_PLAYER);
 					Pointers.SendEventAck(eventMgr, nullptr, sourcePlayer, targetPlayer, index, handledBits);
 					return;
 				}
 			}
 		}
 
-		if (type == NetEventType::EXPLOSION_EVENT && sourcePlayer)
+	if (type == NetEventType::EXPLOSION_EVENT && sourcePlayer)
+	{
+		const bool blocked = Features::_BlockExplosions.GetState()
+		    || (Player(sourcePlayer).IsValid() && Player(sourcePlayer).GetData().m_BlockExplosions);
+
+		if (Features::_AttackLogFile.GetState())
+			AttackLog::Write(blocked ? "EXPLOSION_BLOCK" : "EXPLOSION", sourcePlayer->GetName(), blocked ? "explosion event blocked" : "explosion event received");
+
+		// explosion spam is a classic lag/crash vector: rate-limit per sender
+		if (Player(sourcePlayer).IsValid() && Player(sourcePlayer).GetData().m_ExplosionSpam.Process())
 		{
-			if (Features::_BlockExplosions.GetState()
-			    || (Player(sourcePlayer).IsValid() && Player(sourcePlayer).GetData().m_BlockExplosions))
+			if (Player(sourcePlayer).GetData().m_ExplosionSpam.ExceededLastProcess())
 			{
-				LOG(WARNING) << "Blocked explosion from " << sourcePlayer->GetName();
-				Pointers.SendEventAck(eventMgr, nullptr, sourcePlayer, targetPlayer, index, handledBits);
-				return;
+				LOG(WARNING) << "Blocked explosion spam from " << sourcePlayer->GetName();
+				if (Features::_AttackLogFile.GetState())
+					AttackLog::Write("CRASH_ATTEMPT", sourcePlayer->GetName(), "explosion spam rate limit exceeded, flagged");
+				Player(sourcePlayer).AddDetection(Detection::TRIED_CRASH_PLAYER);
 			}
+			Pointers.SendEventAck(eventMgr, nullptr, sourcePlayer, targetPlayer, index, handledBits);
+			return;
 		}
+
+		if (blocked)
+		{
+			LOG(WARNING) << "Blocked explosion from " << sourcePlayer->GetName();
+			Pointers.SendEventAck(eventMgr, nullptr, sourcePlayer, targetPlayer, index, handledBits);
+			return;
+		}
+	}
 
 		if (type == NetEventType::NETWORK_PTFX_EVENT && sourcePlayer)
 		{
@@ -149,8 +172,10 @@ namespace YimMenu::Hooks
 
 		if (type == NetEventType::SCRIPT_COMMAND_EVENT && sourcePlayer && Features::_BlockScriptCommand.GetState())
 		{
-			LogScriptCommandEvent(sourcePlayer, new_buffer);
-			LOG(WARNING) << "Blocked remote native call from " << sourcePlayer->GetName();
+		LogScriptCommandEvent(sourcePlayer, new_buffer);
+		LOG(WARNING) << "Blocked remote native call from " << sourcePlayer->GetName();
+		if (Features::_AttackLogFile.GetState())
+			AttackLog::Write("CRASH_ATTEMPT", sourcePlayer->GetName(), "blocked remote native call (script command event)");
 			Pointers.SendEventAck(eventMgr, nullptr, sourcePlayer, targetPlayer, index, handledBits);
 			Player(sourcePlayer).AddDetection(Detection::MODDER_EVENTS);
 			return;

@@ -440,6 +440,7 @@ namespace YimMenu::Submenus
         networkEventGroup->AddItem(std::make_shared<BoolCommandItem>("blockptfx"_J));
         networkEventGroup->AddItem(std::make_shared<BoolCommandItem>("blockclearpedtasks"_J));
         networkEventGroup->AddItem(std::make_shared<BoolCommandItem>("blockscriptcommand"_J));
+        networkEventGroup->AddItem(std::make_shared<BoolCommandItem>("attacklogfile"_J, "Attack Log File"));
         networkEventGroup->AddItem(std::make_shared<BoolCommandItem>("userelaycxns"_J));
 
         scriptEventGroup->AddItem(std::make_shared<BoolCommandItem>("blockhonormanipulation"_J));

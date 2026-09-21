@@ -20,6 +20,7 @@ namespace YimMenu
 		RateLimiter m_VehicleFloodLimit{10s, 10};
 		RateLimiter m_LargeVehicleFloodLimit{15s, 5};
 		RateLimiter m_TickerMessageRateLimit{5s, 3};
+		RateLimiter m_ExplosionSpam{5s, 5};
 
 		std::optional<std::uint64_t> m_PeerIdToSpoofTo{};
 	};
