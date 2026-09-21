@@ -2,10 +2,8 @@
 
 #include "util/Joaat.hpp"
 
-#include <chrono>
 #include <cmath>
 #include <random>
-#include <unordered_map>
 
 namespace YimMenu::Features::AttackWaves
 {
@@ -26,7 +24,11 @@ namespace YimMenu::Features::AttackWaves
 
     static void SetUpAttacker(int handle, bool human, const Config& config)
     {
-        ENTITY::SET_ENTITY_AS_MISSION_ENTITY(handle, true, true);
+        // NOTE: no SET_ENTITY_AS_MISSION_ENTITY here -- same as IndianAttack.
+        // Mission peds are garbage-collected by the engine the moment they die,
+        // which made corpses vanish instantly. Leaving the ped as a regular
+        // entity keeps the corpse around like any normal RDO corpse (lootable
+        // / skinnable by players).
 
         if (config.invincible)
             ENTITY::SET_ENTITY_INVINCIBLE(handle, true);
@@ -151,48 +153,18 @@ namespace YimMenu::Features::AttackWaves
         return spawn_count;
     }
 
-    // Corpses are kept around for a while after death so they don't vanish the moment they die.
-    static constexpr float corpse_lifetime = 45.f;
-    static std::unordered_map<int, std::chrono::steady_clock::time_point> s_corpses;
-
+    // Same cleanup logic as IndianAttack: dead/despawned attackers are deleted
+    // from the list right away. The corpse itself is NOT deleted -- since the
+    // ped is a regular entity it stays in the world like a typical RDO corpse
+    // until the game cleans it up on its own (players can loot/skin it).
     void Cleanup(std::vector<int>& spawned, bool delete_all)
     {
-        const auto now = std::chrono::steady_clock::now();
-
-        // purge corpses that outlived their keep-alive time (everything when delete_all is set)
-        for (auto it = s_corpses.begin(); it != s_corpses.end();)
-        {
-            if (delete_all || now >= it->second)
-            {
-                int handle = it->first;
-                if (ENTITY::DOES_ENTITY_EXIST(handle) && ENTITY::IS_ENTITY_DEAD(handle))
-                    PED::DELETE_PED(&handle);
-                it = s_corpses.erase(it);
-            }
-            else
-                ++it;
-        }
-
         auto it = spawned.begin();
         while (it != spawned.end())
         {
-            const bool exists = ENTITY::DOES_ENTITY_EXIST(*it);
-            const bool remove = delete_all || !exists || ENTITY::IS_ENTITY_DEAD(*it);
-
-            if (remove)
+            if (delete_all || !ENTITY::DOES_ENTITY_EXIST(*it) || ENTITY::IS_ENTITY_DEAD(*it))
             {
-                if (delete_all)
-                {
-                    if (exists)
-                        PED::DELETE_PED(&(*it));
-                }
-                else if (exists)
-                {
-                    // dead attacker: keep the corpse visible for a while instead of deleting it instantly
-                    s_corpses[*it] = now + std::chrono::seconds((int)corpse_lifetime);
-                }
-                // a ped that simply despawned has nothing left to clean up
-
+                PED::DELETE_PED(&(*it));
                 it = spawned.erase(it);
             }
             else

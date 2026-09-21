@@ -32,9 +32,11 @@ namespace YimMenu::Features::AttackWaves
     // Returns the amount of peds that were actually spawned.
     int SpawnWave(int target_handle, const Config& config, std::vector<int>& spawned);
 
-    // Deletes despawned attackers and removes them from the list.
-    // Dead attackers are kept as corpses for ~45 seconds, then cleaned up automatically.
-    // When delete_all is set, living attackers and every tracked corpse are removed as well
+    // Deletes despawned/dead attackers from the list (same logic as IndianAttack).
+    // Their corpses are NOT deleted: the peds are regular entities, so the
+    // corpses stay in the world like typical RDO corpses until the game cleans
+    // them up on its own (other players can loot/skin them).
+    // When delete_all is set, living attackers are removed as well
     // (used when the feature gets turned off).
     void Cleanup(std::vector<int>& spawned, bool delete_all = false);
 }
