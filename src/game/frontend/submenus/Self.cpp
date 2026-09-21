@@ -802,26 +802,25 @@ namespace YimMenu::Submenus
 
 		auto rareWeaponsGroup = std::make_shared<Group>("Rare & Scopes");
 		rareWeaponsGroup->AddItem(std::make_shared<ImGuiItem>([] {
+			auto give_rare = [](Hash weapon, const char* label) {
+				FiberPool::Push([weapon, label] {
+					const int ped = YimMenu::Self::GetPed().GetHandle();
+					if (!ENTITY::DOES_ENTITY_EXIST(ped))
+						return;
+					WEAPON::GIVE_WEAPON_TO_PED(ped, weapon, 200, true, false, 0, true, 0.5f, 1.0f, 0x2CD419DC, true, 0.0f, false);
+					WEAPON::SET_CURRENT_PED_WEAPON(ped, weapon, true, 0, false, false);
+					// verify instead of blindly reporting success
+					if (WEAPON::HAS_PED_GOT_WEAPON(ped, weapon, 0, false))
+						Notifications::Show("Weapons", std::string(label) + " added and equipped.", NotificationType::Success);
+					else
+						Notifications::Show("Weapons", std::string(label) + ": game refused it (inventory sync).", NotificationType::Error);
+				});
+			};
+
 			if (ImGui::Button("Give M1899 Pistol", ImVec2(-1, 0)))
-			{
-				FiberPool::Push([] {
-					const int ped = YimMenu::Self::GetPed().GetHandle();
-					if (!ENTITY::DOES_ENTITY_EXIST(ped))
-						return;
-					WEAPON::GIVE_WEAPON_TO_PED(ped, "WEAPON_PISTOL_M1899"_J, 200, true, false, 0, true, 0.5f, 1.0f, 0x2CD419DC, true, 0.0f, false);
-					Notifications::Show("Weapons", "M1899 Pistol added.", NotificationType::Success);
-				});
-			}
+				give_rare("WEAPON_PISTOL_M1899"_J, "M1899 Pistol");
 			if (ImGui::Button("Give Midnight's Pistol", ImVec2(-1, 0)))
-			{
-				FiberPool::Push([] {
-					const int ped = YimMenu::Self::GetPed().GetHandle();
-					if (!ENTITY::DOES_ENTITY_EXIST(ped))
-						return;
-					WEAPON::GIVE_WEAPON_TO_PED(ped, "WEAPON_PISTOL_MAUSER_DRUNK"_J, 200, true, false, 0, true, 0.5f, 1.0f, 0x2CD419DC, true, 0.0f, false);
-					Notifications::Show("Weapons", "Midnight's Pistol added.", NotificationType::Success);
-				});
-			}
+				give_rare("WEAPON_PISTOL_MAUSER_DRUNK"_J, "Midnight's Pistol");
 
 			ImGui::Separator();
 
@@ -838,35 +837,63 @@ namespace YimMenu::Submenus
 						"WEAPON_SNIPERRIFLE_CARCANO"_J,
 						"WEAPON_SNIPERRIFLE_ROLLINGBLOCK"_J,
 					};
+					static constexpr const char* kRifleNames[] = {
+						"Carcano",
+						"Rolling Block",
+					};
 					static constexpr Hash kScopes[] = {
 						"COMPONENT_RIFLE_SCOPE02"_J,
 						"COMPONENT_RIFLE_SCOPE03"_J,
 						"COMPONENT_RIFLE_SCOPE04"_J,
 					};
 
-					int changed = 0;
-					for (Hash rifle : kRifles)
+					std::string report;
+					for (std::size_t r = 0; r < 2; ++r)
 					{
-						if (!WEAPON::HAS_PED_GOT_WEAPON(ped, rifle, 0, false))
-							continue;
+						const Hash rifle = kRifles[r];
+						int removed      = 0;
 
+						// no ownership gate: attempt removal blindly, verify afterwards
 						for (Hash scope : kScopes)
 						{
 							if (WEAPON::_HAS_PED_GOT_WEAPON_COMPONENT(ped, scope, rifle))
 							{
 								WEAPON::_REMOVE_WEAPON_COMPONENT_FROM_PED(ped, scope, rifle);
-								++changed;
+								if (!WEAPON::_HAS_PED_GOT_WEAPON_COMPONENT(ped, scope, rifle))
+									++removed;
 							}
 						}
+
+						// fallback path: strip via the weapon object in hands
+						if (removed == 0)
+						{
+							int weapon_obj = WEAPON::GET_CURRENT_PED_WEAPON_ENTITY_INDEX(ped, 0);
+							if (ENTITY::DOES_ENTITY_EXIST(weapon_obj))
+							{
+								for (Hash scope : kScopes)
+								{
+									if (WEAPON::HAS_WEAPON_GOT_WEAPON_COMPONENT(weapon_obj, scope))
+									{
+										WEAPON::REMOVE_WEAPON_COMPONENT_FROM_WEAPON_OBJECT(weapon_obj, scope);
+										if (!WEAPON::HAS_WEAPON_GOT_WEAPON_COMPONENT(weapon_obj, scope))
+											++removed;
+									}
+								}
+							}
+						}
+
 						// equip the "no scope" component so the rifle keeps iron sights
 						WEAPON::_GIVE_WEAPON_COMPONENT_TO_ENTITY(ped, "COMPONENT_SCOPE_NONE"_J, rifle, true);
-						++changed;
+
+						if (removed > 0)
+							report += std::string(kRifleNames[r]) + ": scope removed. ";
+						else if (WEAPON::HAS_PED_GOT_WEAPON(ped, rifle, 0, false))
+							report += std::string(kRifleNames[r]) + ": no scope found. ";
+						else
+							report += std::string(kRifleNames[r]) + ": not owned. ";
 					}
 
-					if (changed > 0)
-						Notifications::Show("Weapons", "Scopes removed, iron sights on.", NotificationType::Success);
-					else
-						Notifications::Show("Weapons", "Own a Carcano or Rolling Block first.", NotificationType::Error);
+					Notifications::Show("Weapons", report, NotificationType::Info);
 				});
 			}
 			ImGui::TextDisabled("Scopes: needs the rifle owned. M1899 works via Give All too.");
