@@ -79,6 +79,7 @@ namespace YimMenu::Submenus {
         plus->AddItem(std::make_shared<BoolCommandItem>("npcattack"_J));
         plus->AddItem(std::make_shared<BoolCommandItem>("cavalryattack"_J, "Cavalry Attack"));
         plus->AddItem(std::make_shared<BoolCommandItem>("maximwagonattack"_J, "Maxim Wagon"));
+        plus->AddItem(std::make_shared<BoolCommandItem>("zombieattack"_J, "Zombie Attack"));
         //plus->AddItem(std::make_shared<BoolCommandItem>("zombieslogging"_J));
         plus->AddItem(std::make_shared<BoolCommandItem>("hardmode"_J));
 

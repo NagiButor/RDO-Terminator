@@ -37,6 +37,7 @@ namespace YimMenu::Features::AttackWaves
         float accuracy = 70.f;
         bool force_equip = false; // force the given weapon into the ped's hands (melee-only attackers)
         bool use_lasso = false;   // humans get WEAPON_LASSO + TASK_LASSO_PED on the target instead of combat
+        float weapon_chance = 1.0f; // probability (0-1) a human actually receives the configured weapon
     };
 
     // Spawns a wave of attackers around the target ped and sends them after it.

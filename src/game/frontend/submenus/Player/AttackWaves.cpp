@@ -86,10 +86,20 @@ namespace YimMenu::Features::AttackWaves
         const char* weapon_name = PickRandom(config.weapons);
         if (weapon_name)
         {
-            WEAPON::GIVE_WEAPON_TO_PED(handle, Joaat(weapon_name), 500, true, false, 0, false, 0.5f, 1.0f, 1, false, 0, false);
+            bool give = config.weapon_chance >= 1.0f;
+            if (!give && config.weapon_chance > 0.0f)
+            {
+                std::uniform_real_distribution<float> roll(0.f, 1.f);
+                give = roll(Rng()) < config.weapon_chance;
+            }
 
-            if (config.force_equip)
-                WEAPON::SET_CURRENT_PED_WEAPON(handle, Joaat(weapon_name), true, 0, false, false);
+            if (give)
+            {
+                WEAPON::GIVE_WEAPON_TO_PED(handle, Joaat(weapon_name), 500, true, false, 0, false, 0.5f, 1.0f, 1, false, 0, false);
+
+                if (config.force_equip)
+                    WEAPON::SET_CURRENT_PED_WEAPON(handle, Joaat(weapon_name), true, 0, false, false);
+            }
         }
     }
 

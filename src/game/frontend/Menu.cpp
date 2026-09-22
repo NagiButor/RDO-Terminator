@@ -21,6 +21,9 @@
 
 namespace YimMenu
 {
+	// bump on every release so users can verify which build is loaded in game
+	constexpr const char* kMenuVersion = "2026.09.22";
+
 	static YimMenu::Submenus::Settings g_SettingsInstance;
 
 	void Menu::Init()
@@ -87,6 +90,8 @@ namespace YimMenu
 				ImGui::SameLine();
 				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.25f, 0.25f, 1.0f));
 				ImGui::Text("| by Mi5hlen");
+				ImGui::SameLine();
+				ImGui::TextDisabled(kMenuVersion);
 				ImGui::PopStyleColor();
 				ImGui::PopStyleColor(); 
 
