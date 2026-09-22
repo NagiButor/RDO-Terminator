@@ -37,6 +37,13 @@ namespace YimMenu
 		{
 			SubmenuButton("Mission Details", "Mission Details"sv, "Access Mission details");
 			SubmenuButton("Placement", "Placement"sv, "Place items");
+			if (Button("Clear All Entities", "Delete every placed actor, vehicle and prop"))
+			{
+				if (NativeUI::ShowAlertMessage("Alert", "Delete all placed entities?", "IB_YES"_J, "IB_NO"_J))
+				{
+					MapEditor::ClearEntities();
+				}
+			}
 			BeginDisabled(m_Info->m_Name.empty(), "A Mission must have a name");
 			if (Button("Save", "Save the mission to disk"))
 			{
@@ -193,27 +200,31 @@ namespace YimMenu
 					as_ped->ChangeVariation(ui_variation - 1);
 				}
 
-				auto scen_view = CategoryUtils::GetListView(g_PedScenarios, as_ped->m_Scenario);
-				if (!scen_view.m_CurrentEntry)
-				{
-					LOG(WARNING) << "Failed to get scenario view with hash " << HEX(as_ped->m_Scenario);
-					scen_view = CategoryUtils::GetListView(g_PedScenarios, 0);
-				}
+			auto scen_view = CategoryUtils::GetListView(g_PedScenarios, as_ped->m_Scenario);
+			if (!scen_view.m_CurrentEntry)
+			{
+				LOG(WARNING) << "Failed to get scenario view with hash " << HEX(as_ped->m_Scenario);
+				as_ped->ChangeScenario(0);
+				scen_view = CategoryUtils::GetListView(g_PedScenarios, 0);
+			}
 
-				auto scen_delta = ListOption("Scenario",
-				    scen_view.m_CurrentEntry->m_FriendlyName,
-				    scen_view.m_PreviousEntry ? std::optional(scen_view.m_PreviousEntry->m_FriendlyName) : std::nullopt,
-				    scen_view.m_NextEntry ? std::optional(scen_view.m_NextEntry->m_FriendlyName) : std::nullopt,
-				    "Choose the ambient scenario for the Actor");
+			if (scen_view.m_CurrentEntry)
+			{
+			auto scen_delta = ListOption("Scenario",
+			    scen_view.m_CurrentEntry->m_FriendlyName,
+			    scen_view.m_PreviousEntry ? std::optional(scen_view.m_PreviousEntry->m_FriendlyName) : std::nullopt,
+			    scen_view.m_NextEntry ? std::optional(scen_view.m_NextEntry->m_FriendlyName) : std::nullopt,
+			    "Choose the ambient scenario for the Actor");
 
-				if (scen_delta < 0)
-				{
-					as_ped->ChangeScenario(scen_view.m_PreviousEntry->m_Hash);
-				}
-				else if (scen_delta > 0)
-				{
-					as_ped->ChangeScenario(scen_view.m_NextEntry->m_Hash);
-				}
+			if (scen_delta < 0)
+			{
+				as_ped->ChangeScenario(scen_view.m_PreviousEntry->m_Hash);
+			}
+			else if (scen_delta > 0)
+			{
+				as_ped->ChangeScenario(scen_view.m_NextEntry->m_Hash);
+			}
+			}
 
 				auto exp_view = CategoryUtils::GetListView(g_PedExpressions, as_ped->m_Expression);
 				if (!exp_view.m_CurrentEntry)

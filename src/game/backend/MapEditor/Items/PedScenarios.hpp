@@ -12,6 +12,7 @@ namespace YimMenu
 
 	inline std::vector<PedScenarioDefinition> g_PedScenarios =
 	{
+		{0, "None"},
 		{"PROP_HUMAN_PIANO"_J, "Play Piano"},
 		{"PROP_HUMAN_PIANO_RIVERBOAT"_J, "Piano Riverboat"},
 		{"PROP_HUMAN_PIANO_SKETCHY"_J, "Piano Sketchy"},

@@ -103,6 +103,8 @@ namespace YimMenu
 		m_MoveBackward.BeginFrame();
 		m_MoveLeft.BeginFrame();
 		m_MoveRight.BeginFrame();
+		m_MoveUp.BeginFrame();
+		m_MoveDown.BeginFrame();
 		m_ZoomIn.BeginFrame();
 		m_ZoomOut.BeginFrame();
 		m_RotateLeft.BeginFrame();
@@ -123,6 +125,8 @@ namespace YimMenu
 		m_MoveBackward.EndFrame();
 		m_MoveLeft.EndFrame();
 		m_MoveRight.EndFrame();
+		m_MoveUp.EndFrame();
+		m_MoveDown.EndFrame();
 		m_ZoomIn.EndFrame();
 		m_ZoomOut.EndFrame();
 		m_RotateLeft.EndFrame();

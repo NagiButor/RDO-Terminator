@@ -200,6 +200,20 @@ namespace YimMenu
 		}
 	}
 
+	void MapEditor::ClearEntitiesImpl()
+	{
+		if (m_Selection.HasSelection())
+			CancelSelectionImpl();
+
+		std::vector<std::uint32_t> indices;
+		indices.reserve(m_Entitites.size());
+		for (const auto& [index, _] : m_Entitites)
+			indices.push_back(index);
+
+		for (std::uint32_t index : indices)
+			DeleteEntityImpl(index);
+	}
+
 	void MapEditor::AddEntityToGlobalStoreImpl(MapEntity* entity)
 	{
 		m_GlobalEntityStore.insert(entity);

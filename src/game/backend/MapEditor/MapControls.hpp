@@ -44,6 +44,8 @@ namespace YimMenu
 		MapControl m_MoveBackward{NativeInputs::INPUT_MOVE_DOWN_ONLY};
 		MapControl m_MoveLeft{NativeInputs::INPUT_MOVE_LEFT_ONLY};
 		MapControl m_MoveRight{NativeInputs::INPUT_MOVE_RIGHT_ONLY};
+		MapControl m_MoveUp{NativeInputs::INPUT_SPRINT};
+		MapControl m_MoveDown{NativeInputs::INPUT_DUCK};
 		MapControl m_ZoomIn{NativeInputs::INPUT_CREATOR_RT};
 		MapControl m_ZoomOut{NativeInputs::INPUT_CREATOR_LT};
 		MapControl m_RotateLeft{NativeInputs::INPUT_FRONTEND_LB};
@@ -64,6 +66,8 @@ namespace YimMenu
 		MapControl& GetMoveBackward() { return m_MoveBackward; };
 		MapControl& GetMoveLeft() { return m_MoveLeft; };
 		MapControl& GetMoveRight() { return m_MoveRight; };
+		MapControl& GetMoveUp() { return m_MoveUp; };
+		MapControl& GetMoveDown() { return m_MoveDown; };
 		MapControl& GetZoomIn() { return m_ZoomIn; };
 		MapControl& GetZoomOut() { return m_ZoomOut; };
 		MapControl& GetRotateLeft() { return m_RotateLeft; };

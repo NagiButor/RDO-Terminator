@@ -89,6 +89,16 @@ namespace YimMenu
 		{
 			PosChange.x += m_Speed;
 		}
+		// Up (Left Shift)
+		if (controls.GetMoveUp().IsPressed(MapControl::Subsystem::CAMERA))
+		{
+			PosChange.z += m_Speed;
+		}
+		// Down (Left Ctrl)
+		if (controls.GetMoveDown().IsPressed(MapControl::Subsystem::CAMERA))
+		{
+			PosChange.z -= m_Speed;
+		}
 		// Zoom In
 		if (controls.GetZoomIn().IsPressed(MapControl::Subsystem::CAMERA))
 		{

@@ -80,6 +80,8 @@ namespace YimMenu
 		{
 			auto handle = m_GameEntity.GetHandle();
 			TASK::CLEAR_PED_TASKS_IMMEDIATELY(handle, true, true);
+			if (m_Scenario == 0)
+				return; // "None": no scenario task (hash 0 crashes the task system)
 			if (DoesScenarioUseChair(m_Scenario))
 			{
 				auto dimensions = GetDimensions();

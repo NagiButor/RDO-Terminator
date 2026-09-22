@@ -57,6 +57,16 @@ namespace YimMenu
 			GetInstance().DeleteEntityImpl(index);
 		}
 
+		static void ClearEntities()
+		{
+			GetInstance().ClearEntitiesImpl();
+		}
+
+		static std::size_t GetEntityCount()
+		{
+			return GetInstance().m_Entitites.size();
+		}
+
 		static void AddEntityToGlobalStore(MapEntity* entity)
 		{
 			GetInstance().AddEntityToGlobalStoreImpl(entity);
@@ -145,6 +155,7 @@ namespace YimMenu
 		std::uint32_t RegisterEntityImpl(std::shared_ptr<MapEntity> new_entity);
 		void ReplaceEntityImpl(std::uint32_t index, std::shared_ptr<MapEntity> to_replace);
 		void DeleteEntityImpl(std::uint32_t index);
+		void ClearEntitiesImpl();
 		void AddEntityToGlobalStoreImpl(MapEntity* entity);
 		void RemoveEntityFromGlobalStoreImpl(MapEntity* entity);
 		bool IsGameEntityRegisteredWithGlobalStoreImpl(Entity entity);
