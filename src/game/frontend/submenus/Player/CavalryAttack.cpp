@@ -18,8 +18,10 @@
 namespace YimMenu::Features
 {
 	static std::vector<int> cavalry_index; // riders + their horses
-	static std::vector<int> wagon_crew_index;
-	static int wagon_vehicle = 0;
+	static std::vector<int> maxim_crew_index;
+	static int maxim_vehicle = 0;
+	static std::vector<int> police_crew_index;
+	static int police_vehicle = 0;
 
 	static std::mt19937& CavalryRng()
 	{
@@ -225,48 +227,47 @@ namespace YimMenu::Features
 		return -2; // none free
 	}
 
-	static void SpawnMaximWagon(int target_handle)
+	static void SpawnGunWagon(int target_handle, Hash wagon_model, Hash turret_weapon, const char* driver_model, const char* gunner_model, const char* feature_name, std::vector<int>& crew_index, int& vehicle_handle)
 	{
-		const Hash wagon_model = Joaat("gatlingMaxim02");
-		const Hash driver_model = Joaat("S_M_Y_Army_01");
-		const Hash gunner_model = Joaat("U_M_M_ARMYTRN4_01");
+		const Hash driver_model_hash = Joaat(driver_model);
+		const Hash gunner_model_hash = Joaat(gunner_model);
 
 		RequestModelBlocking(wagon_model);
-		RequestModelBlocking(driver_model);
-		RequestModelBlocking(gunner_model);
+		RequestModelBlocking(driver_model_hash);
+		RequestModelBlocking(gunner_model_hash);
 
 		Vector3 pos = RingPosAround(target_handle, 60.f);
 
 		Vehicle wagon = Vehicle::Create(wagon_model, pos, 0.f);
 		if (!wagon.IsValid())
 		{
-			Notifications::Show("Maxim Wagon", "Could not spawn the wagon.", NotificationType::Error);
+			Notifications::Show(feature_name, "Could not spawn the wagon.", NotificationType::Error);
 			return;
 		}
 
-		wagon_vehicle = wagon.GetHandle();
-		if (!ENTITY::DOES_ENTITY_EXIST(wagon_vehicle))
+		vehicle_handle = wagon.GetHandle();
+		if (!ENTITY::DOES_ENTITY_EXIST(vehicle_handle))
 		{
-			wagon_vehicle = 0;
+			vehicle_handle = 0;
 			return;
 		}
 
-		WEAPON::_SET_AMMO_IN_TURRET(wagon_vehicle, Joaat("WEAPON_TURRET_MAXIM"), 999);
+		WEAPON::_SET_AMMO_IN_TURRET(vehicle_handle, turret_weapon, 999);
 
-		Ped driver = Ped::Create(driver_model, pos, 0.f);
-		Ped gunner = Ped::Create(gunner_model, pos, 0.f);
+		Ped driver = Ped::Create(driver_model_hash, pos, 0.f);
+		Ped gunner = Ped::Create(gunner_model_hash, pos, 0.f);
 
 		if (driver.IsValid() && ENTITY::DOES_ENTITY_EXIST(driver.GetHandle()))
 		{
 			const int driver_handle = driver.GetHandle();
 			SetupFighter(driver_handle, true, "WEAPON_REPEATER_CARBINE");
 
-			const int seat = FirstFreeSeat(wagon_vehicle, -1); // -1 = driver first
+			const int seat = FirstFreeSeat(vehicle_handle, -1); // -1 = driver first
 			if (seat >= -1)
-				PED::SET_PED_INTO_VEHICLE(driver_handle, wagon_vehicle, seat);
+				PED::SET_PED_INTO_VEHICLE(driver_handle, vehicle_handle, seat);
 
 			TASK::TASK_COMBAT_PED(driver_handle, target_handle, 0, 16);
-			wagon_crew_index.push_back(driver_handle);
+			crew_index.push_back(driver_handle);
 		}
 
 		if (gunner.IsValid() && ENTITY::DOES_ENTITY_EXIST(gunner.GetHandle()))
@@ -274,39 +275,39 @@ namespace YimMenu::Features
 			const int gunner_handle = gunner.GetHandle();
 			SetupFighter(gunner_handle, true, "WEAPON_REPEATER_WINCHESTER");
 
-			// prefer the turret seat so the gunner works the Maxim, otherwise any free seat
+			// prefer the turret seat so the gunner works the gun, otherwise any free seat
 			int turret_seat = -2;
 			int seat       = -2;
-			if (VEHICLE::_GET_VEHICLE_TURRET_SEAT(wagon_vehicle, &turret_seat) && VEHICLE::IS_VEHICLE_SEAT_FREE(wagon_vehicle, turret_seat))
+			if (VEHICLE::_GET_VEHICLE_TURRET_SEAT(vehicle_handle, &turret_seat) && VEHICLE::IS_VEHICLE_SEAT_FREE(vehicle_handle, turret_seat))
 				seat = turret_seat;
 			else
-				seat = FirstFreeSeat(wagon_vehicle, 0);
+				seat = FirstFreeSeat(vehicle_handle, 0);
 
 			if (seat >= -1)
 			{
-				PED::SET_PED_INTO_VEHICLE(gunner_handle, wagon_vehicle, seat);
+				PED::SET_PED_INTO_VEHICLE(gunner_handle, vehicle_handle, seat);
 				TASK::TASK_VEHICLE_SHOOT_AT_PED(gunner_handle, target_handle, 0.5f);
 			}
 			else
 			{
 				TASK::TASK_COMBAT_PED(gunner_handle, target_handle, 0, 16);
 			}
-			wagon_crew_index.push_back(gunner_handle);
+			crew_index.push_back(gunner_handle);
 		}
 
 		STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(wagon_model);
-		STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(driver_model);
-		STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(gunner_model);
+		STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(driver_model_hash);
+		STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(gunner_model_hash);
 	}
 
-	static void DeleteWagon()
+	static void DeleteGunWagon(int& vehicle_handle)
 	{
-		if (wagon_vehicle != 0 && ENTITY::DOES_ENTITY_EXIST(wagon_vehicle))
+		if (vehicle_handle != 0 && ENTITY::DOES_ENTITY_EXIST(vehicle_handle))
 		{
-			auto handle = wagon_vehicle;
+			auto handle = vehicle_handle;
 			VEHICLE::DELETE_VEHICLE(&handle);
 		}
-		wagon_vehicle = 0;
+		vehicle_handle = 0;
 	}
 
 	class MaximWagonAttack : public LoopedCommand
@@ -320,21 +321,22 @@ namespace YimMenu::Features
 
 			if (!player_ped.IsValid() || player_ped.GetHealth() <= 0)
 			{
-				AttackWaves::Cleanup(wagon_crew_index);
+				AttackWaves::Cleanup(maxim_crew_index);
 				return;
 			}
 
-			if (!wagon_crew_index.empty())
+			if (!maxim_crew_index.empty())
 			{
-				AttackWaves::Cleanup(wagon_crew_index);
-				if (wagon_crew_index.empty())
-					DeleteWagon(); // crew wiped out: remove the empty wagon too
+				AttackWaves::Cleanup(maxim_crew_index);
+				if (maxim_crew_index.empty())
+					DeleteGunWagon(maxim_vehicle); // crew wiped out: remove the empty wagon too
 				return;
 			}
 
-			DeleteWagon();
-			SpawnMaximWagon(player_ped.GetHandle());
-			AttackWaves::Cleanup(wagon_crew_index);
+			DeleteGunWagon(maxim_vehicle);
+			SpawnGunWagon(player_ped.GetHandle(), Joaat("gatlingMaxim02"), Joaat("WEAPON_TURRET_MAXIM"),
+			    "S_M_Y_Army_01", "U_M_M_ARMYTRN4_01", "Maxim Wagon", maxim_crew_index, maxim_vehicle);
+			AttackWaves::Cleanup(maxim_crew_index);
 		}
 
 		void OnEnable() override
@@ -344,11 +346,55 @@ namespace YimMenu::Features
 
 		void OnDisable() override
 		{
-			AttackWaves::Cleanup(wagon_crew_index, true);
-			DeleteWagon();
+			AttackWaves::Cleanup(maxim_crew_index, true);
+			DeleteGunWagon(maxim_vehicle);
 			Notifications::Show("Maxim Wagon", std::string("Cleared the wagon (target: ") + Players::GetSelected().GetName() + ")", NotificationType::Info);
 		}
 	};
 
 	static MaximWagonAttack _MaximWagonAttack{"maximwagonattack", "Maxim Wagon", "Spawns a Maxim-gun wagon with driver and gunner that hunts down the selected player."};
+
+	class PoliceGatlingAttack : public LoopedCommand
+	{
+		using LoopedCommand::LoopedCommand;
+
+		void OnTick() override
+		{
+			Player target_player = Players::GetSelected();
+			Ped player_ped       = target_player.GetPed();
+
+			if (!player_ped.IsValid() || player_ped.GetHealth() <= 0)
+			{
+				AttackWaves::Cleanup(police_crew_index);
+				return;
+			}
+
+			if (!police_crew_index.empty())
+			{
+				AttackWaves::Cleanup(police_crew_index);
+				if (police_crew_index.empty())
+					DeleteGunWagon(police_vehicle); // crew wiped out: remove the empty wagon too
+				return;
+			}
+
+			DeleteGunWagon(police_vehicle);
+			SpawnGunWagon(player_ped.GetHandle(), Joaat("policeWagongatling01x"), Joaat("WEAPON_TURRET_GATLING"),
+			    "S_M_M_DispatchPolice_01", "S_M_M_DispatchLeaderPolice_01", "Police Gatling", police_crew_index, police_vehicle);
+			AttackWaves::Cleanup(police_crew_index);
+		}
+
+		void OnEnable() override
+		{
+			Notifications::Show("Police Gatling", std::string("Rolling out the police Gatling wagon on ") + Players::GetSelected().GetName(), NotificationType::Info);
+		}
+
+		void OnDisable() override
+		{
+			AttackWaves::Cleanup(police_crew_index, true);
+			DeleteGunWagon(police_vehicle);
+			Notifications::Show("Police Gatling", std::string("Cleared the wagon (target: ") + Players::GetSelected().GetName() + ")", NotificationType::Info);
+		}
+	};
+
+	static PoliceGatlingAttack _PoliceGatlingAttack{"policewagonattack", "Police Gatling Wagon", "Spawns a police Gatling wagon with driver and gunner that hunts down the selected player."};
 }

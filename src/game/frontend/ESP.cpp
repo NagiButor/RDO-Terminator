@@ -75,6 +75,7 @@ namespace YimMenu::Features
     BoolCommand _ESPDrawPlayers("espdrawplayers", "Draw Players", "Should the ESP draw players?");
     BoolCommand _ESPDrawDeadPlayers("espdrawdeadplayers", "Draw Dead Players", "Should the ESP draw dead players?");
     BoolCommand _ESPName("espnameplayers", "Show Player Name", "Should the ESP draw player names?");
+    BoolCommand _ESPHealth("esphealthplayers", "Show Player Health", "Should the ESP draw player HP bars?");
     BoolCommand _ESPDistance("espdistanceplayers", "Show Player Distance", "Should the ESP draw player distance?");
     BoolCommand _ESPSkeleton("espskeletonplayers", "Show Player Skeleton", "Should the ESP draw player skeletons?");
 
@@ -251,6 +252,24 @@ namespace YimMenu
             auto headPos     = boneToScreen(plyr.GetPed().GetBonePosition(headBone));
             std::string distanceStr = std::to_string(static_cast<int>(distanceToPlayer)) + "m";
             DrawTextInfo(drawList, { headPos.x, headPos.y + 20 }, distanceStr, colorBasedOnDistance);
+        }
+
+        if (Features::_ESPHealth.GetState())
+        {
+            auto headPos  = boneToScreen(plyr.GetPed().GetBonePosition(headBone));
+            const int hp     = plyr.GetPed().GetHealth();
+            const int max_hp = ENTITY::GET_ENTITY_MAX_HEALTH(plyr.GetPed().GetHandle(), true);
+            const float frac = max_hp > 0 ? std::clamp((float)hp / (float)max_hp, 0.f, 1.f) : 0.f;
+
+            // HP bar under the distance text
+            const float bar_w = 60.f;
+            const ImVec2 bar_min{headPos.x - bar_w / 2.f, headPos.y + 38};
+            const ImVec2 bar_max{headPos.x + bar_w / 2.f, headPos.y + 43};
+            drawList->AddRectFilled(bar_min, bar_max, IM_COL32(0, 0, 0, 160));
+            ImColor bar_color = frac > 0.5f ? Green : (frac > 0.25f ? Orange : Red);
+            drawList->AddRectFilled(bar_min, {bar_min.x + bar_w * frac, bar_max.y}, bar_color);
+
+            DrawTextInfo(drawList, {headPos.x - bar_w / 2.f, headPos.y + 45}, std::to_string(hp), IM_COL32(255, 255, 255, 255));
         }
 
         currentFont->Scale = originalFontSize;

@@ -769,6 +769,7 @@ namespace YimMenu::Submenus
 		movementGroup->AddItem(std::make_shared<ConditionalItem>("noclip"_J, std::make_shared<FloatCommandItem>("noclipspeed"_J)));
 		movementGroup->AddItem(std::make_shared<BoolCommandItem>("freecam"_J));
 		movementGroup->AddItem(std::make_shared<ConditionalItem>("freecam"_J, std::make_shared<FloatCommandItem>("freecamspeed"_J)));
+		movementGroup->AddItem(std::make_shared<ConditionalItem>("freecam"_J, std::make_shared<BoolCommandItem>("freecamlightning"_J, "Freecam Lightning (LMB)")));
 
 		main->AddItem(globalsGroup);
 		main->AddItem(toolsGroup);

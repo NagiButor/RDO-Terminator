@@ -6,4 +6,6 @@ namespace YimMenu::Features::LightningOptions
     float& StrikeDistance();
     // strikes the currently selected player (must be called on a script fiber)
     void StrikeNow();
+    // strikes an exact world point with flash + thunder + damage (must be called on a script fiber)
+    void StrikeAtExact(float x, float y, float z);
 }

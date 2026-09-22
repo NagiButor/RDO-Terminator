@@ -21,6 +21,14 @@ namespace YimMenu::Features::LightningOptions
 		return s_distance;
 	}
 
+	static void StrikeExact(float x, float y, float z)
+	{
+		// real bolt: flash + thunder at the coords (p3 = -1 like the game scripts use)...
+		MISC::_FORCE_LIGHTNING_FLASH_AT_COORDS(x, y, z, -1.0f);
+		// ...plus the lightning explosion tag for damage and sound
+		FIRE::ADD_EXPLOSION(x, y, z, 33, 5.0f, true, false, 5.0f);
+	}
+
 	static void StrikeAt(const rage::fvector3& pos)
 	{
 		static std::mt19937 rng{std::random_device{}()};
@@ -36,10 +44,16 @@ namespace YimMenu::Features::LightningOptions
 		if (MISC::GET_GROUND_Z_FOR_3D_COORD(x, y, pos.z + 5.f, &ground_z, false))
 			z = ground_z + 1.f;
 
-		// real bolt: flash + thunder at the coords (p3 = -1 like the game scripts use)...
-		MISC::_FORCE_LIGHTNING_FLASH_AT_COORDS(x, y, z, -1.0f);
-		// ...plus the lightning explosion tag for damage and sound
-		FIRE::ADD_EXPLOSION(x, y, z, 33, 5.0f, true, false, 5.0f);
+		StrikeExact(x, y, z);
+	}
+
+	void StrikeAtExact(float x, float y, float z)
+	{
+		float ground_z = z;
+		if (MISC::GET_GROUND_Z_FOR_3D_COORD(x, y, z + 5.f, &ground_z, false))
+			z = ground_z + 1.f;
+
+		StrikeExact(x, y, z);
 	}
 
 	void StrikeNow()

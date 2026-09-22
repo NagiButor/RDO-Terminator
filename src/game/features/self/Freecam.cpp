@@ -1,6 +1,8 @@
+#include "core/commands/BoolCommand.hpp"
 #include "core/commands/FloatCommand.hpp"
 #include "core/commands/LoopedCommand.hpp"
 #include "game/backend/Self.hpp"
+#include "game/features/players/toxic/LightningStrike.hpp"
 #include "game/frontend/GUI.hpp"
 #include "game/rdr/Enums.hpp"
 #include "game/rdr/Natives.hpp"
@@ -11,6 +13,7 @@
 namespace YimMenu::Features
 {
 	static FloatCommand _FreecamSpeed{"freecamspeed", "Freecam Speed", "How fast the freecam will move positions", 0.01f, 10.0f, 0.10f};
+	static BoolCommand _FreecamLightning{"freecamlightning", "Freecam Lightning", "Left mouse click strikes lightning at the crosshair point", false};
 
 	class Freecam : public LoopedCommand
 	{
@@ -128,6 +131,24 @@ namespace YimMenu::Features
 				if (PAD::IS_DISABLED_CONTROL_JUST_PRESSED(0, (Hash)NativeInputs::INPUT_FRONTEND_ACCEPT))
 				{
 					Teleport::TeleportPlayerToCoords(Self::GetPlayer(), position);
+				}
+
+				// crosshair lightning: left click strikes where the freecam looks
+				static int strike_cooldown = 0;
+				if (strike_cooldown > 0)
+					--strike_cooldown;
+
+				if (_FreecamLightning.GetState() && strike_cooldown <= 0
+				    && PAD::IS_DISABLED_CONTROL_JUST_PRESSED(0, (Hash)NativeInputs::INPUT_ATTACK))
+				{
+					const Vector3 fwd = Math::RotationToDirection(rotation);
+					constexpr float kStrikeDistance = 150.f;
+					const float x = position.x + fwd.x * kStrikeDistance;
+					const float y = position.y + fwd.y * kStrikeDistance;
+					const float z = position.z + fwd.z * kStrikeDistance;
+
+					LightningOptions::StrikeAtExact(x, y, z);
+					strike_cooldown = 30;
 				}
 			}
 		}
