@@ -4,12 +4,15 @@
 #include "core/commands/ColorCommand.hpp"
 #include "game/backend/Players.hpp"
 #include "game/backend/Self.hpp"
+#include "game/features/Features.hpp"
 #include "game/pointers/Pointers.hpp"
 #include "game/rdr/Pools.hpp"
 #include "game/rdr/Scripts.hpp"
 #include "util/Math.hpp"
 #include "game/rdr/data/PedModels.hpp"
 #include "game/rdr/invoker/Invoker.hpp"
+
+#include <cmath>
 
 namespace
 {
@@ -103,6 +106,54 @@ namespace YimMenu::Features
 
 namespace YimMenu
 {
+    // Projects with the camera that actually renders the picture (spectator/freecam/script cams).
+    // Returns x == 0 when the point can't be projected (no cam / behind it).
+    static ImVec2 ProjectFromRenderCam(const rage::fvector3& bone)
+    {
+        const Cam cam = CAM::GET_RENDERING_CAM();
+        if (!cam || !CAM::DOES_CAM_EXIST(cam))
+            return ImVec2(0, 0);
+
+        const Vector3 campos = CAM::GET_CAM_COORD(cam);
+        const Vector3 camrot = CAM::GET_CAM_ROT(cam, 2);
+        const float fov      = CAM::GET_CAM_FOV(cam);
+        if (fov <= 1.f)
+            return ImVec2(0, 0);
+
+        const float yaw   = Math::DegToRad(camrot.z);
+        const float pitch = Math::DegToRad(camrot.x);
+        const float cp    = std::cos(pitch);
+
+        // camera basis (same convention as Math::RotationToDirection)
+        const float fwd_x = -std::sin(yaw) * cp;
+        const float fwd_y = std::cos(yaw) * cp;
+        const float fwd_z = std::sin(pitch);
+        const float right_x = std::cos(yaw);
+        const float right_y = std::sin(yaw);
+        const float right_z = 0.f;
+        // up = right x fwd
+        const float up_x = right_y * fwd_z - right_z * fwd_y;
+        const float up_y = right_z * fwd_x - right_x * fwd_z;
+        const float up_z = right_x * fwd_y - right_y * fwd_x;
+
+        const float rx = bone.x - campos.x;
+        const float ry = bone.y - campos.y;
+        const float rz = bone.z - campos.z;
+
+        const float cx = rx * right_x + ry * right_y + rz * right_z;
+        const float cy = rx * up_x + ry * up_y + rz * up_z;
+        const float cz = rx * fwd_x + ry * fwd_y + rz * fwd_z;
+
+        if (cz <= 0.1f)
+            return ImVec2(0, 0); // behind the camera
+
+        const float tan_half = std::tan(Math::DegToRad(fov) * 0.5f);
+        const float aspect   = (float)(*Pointers.ScreenResX) / (float)(*Pointers.ScreenResY);
+
+        return ImVec2(
+            (0.5f + 0.5f * cx / (cz * tan_half * aspect)) * (float)(*Pointers.ScreenResX),
+            (0.5f - 0.5f * cy / (cz * tan_half)) * (float)(*Pointers.ScreenResY));
+    }
     static ImVec4 Green  = ImVec4(0.29f, 0.69f, 0.34f, 1.f);
     static ImVec4 Orange = ImVec4(0.69f, 0.49f, 0.29f, 1.f);
     static ImVec4 Red    = ImVec4(0.69f, 0.29f, 0.29f, 1.f);
@@ -125,6 +176,11 @@ namespace YimMenu
 
     ImVec2 ESP::boneToScreen(rage::fvector3 bone)
     {
+        // In spectator mode the picture comes from the render camera at the target,
+        // but the engine WorldToScreen still projects from our own gameplay camera.
+        if (g_Spectating)
+            return ProjectFromRenderCam(bone);
+
         float screen_x, screen_y;
         float boneCoords[3] = { bone.x, bone.y, bone.z };
 
