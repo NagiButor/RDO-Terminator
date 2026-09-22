@@ -202,6 +202,10 @@ namespace YimMenu::Features::AttackWaves
 
             SetUpAttacker(handle, PED::IS_PED_HUMAN(handle) != 0, config);
 
+            // our attackers must always be visible, no matter the local visibility state
+            ENTITY::SET_ENTITY_VISIBLE(handle, true);
+            ENTITY::RESET_ENTITY_ALPHA(handle);
+
             const bool human = PED::IS_PED_HUMAN(handle) != 0;
             if (config.use_lasso && human)
             {

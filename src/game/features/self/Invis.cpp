@@ -12,16 +12,13 @@ namespace YimMenu::Features
 		{
 			if (Self::GetPed())
 			{
+				// the dedicated invisibility native (covers the ped + its vehicle)
+				NETWORK::SET_PLAYER_INVISIBLE_LOCALLY(Self::GetPlayer().GetId(), true);
 				Self::GetPed().SetVisible(false);
-				// false = fully invisible, even to yourself
-				// (true would force-override and keep you visible locally)
-				NETWORK::SET_PLAYER_VISIBLE_LOCALLY(Self::GetPlayer().GetId(), false);
 
-				// hide what you're riding too, otherwise the horse gives you away
+				// hide the horse too, otherwise it gives you away
 				if (auto mount = Self::GetPed().GetMount(); mount.IsValid())
 					mount.SetVisible(false);
-				if (auto vehicle = Self::GetPed().GetVehicle(); vehicle.IsValid())
-					vehicle.SetVisible(false);
 			}
 		}
 
@@ -29,13 +26,11 @@ namespace YimMenu::Features
 		{
 			if (Self::GetPed())
 			{
+				NETWORK::SET_PLAYER_VISIBLE_LOCALLY(Self::GetPlayer().GetId(), true);
 				Self::GetPed().SetVisible(true);
-				NETWORK::SET_PLAYER_VISIBLE_LOCALLY(Self::GetPlayer().GetId(), false);
 
 				if (auto mount = Self::GetPed().GetMount(); mount.IsValid())
 					mount.SetVisible(true);
-				if (auto vehicle = Self::GetPed().GetVehicle(); vehicle.IsValid())
-					vehicle.SetVisible(true);
 			}
 		}
 	};

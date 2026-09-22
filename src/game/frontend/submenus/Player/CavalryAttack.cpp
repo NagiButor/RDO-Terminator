@@ -154,6 +154,12 @@ namespace YimMenu::Features
 			SetupFighter(horse_handle, false, nullptr);
 			SetupFighter(rider_handle, true, kWeapons[weapon_dist(CavalryRng())]);
 
+			// riders and horses must always be visible
+			ENTITY::SET_ENTITY_VISIBLE(horse_handle, true);
+			ENTITY::RESET_ENTITY_ALPHA(horse_handle);
+			ENTITY::SET_ENTITY_VISIBLE(rider_handle, true);
+			ENTITY::RESET_ENTITY_ALPHA(rider_handle);
+
 			rider.SetInMount(horse);
 
 			if (NpcAttackOptions::ConfiguredLasso())
@@ -261,6 +267,8 @@ namespace YimMenu::Features
 		{
 			const int driver_handle = driver.GetHandle();
 			SetupFighter(driver_handle, true, "WEAPON_REPEATER_CARBINE");
+			ENTITY::SET_ENTITY_VISIBLE(driver_handle, true);
+			ENTITY::RESET_ENTITY_ALPHA(driver_handle);
 
 			const int seat = FirstFreeSeat(vehicle_handle, -1); // -1 = driver first
 			if (seat >= -1)
@@ -274,6 +282,8 @@ namespace YimMenu::Features
 		{
 			const int gunner_handle = gunner.GetHandle();
 			SetupFighter(gunner_handle, true, "WEAPON_REPEATER_WINCHESTER");
+			ENTITY::SET_ENTITY_VISIBLE(gunner_handle, true);
+			ENTITY::RESET_ENTITY_ALPHA(gunner_handle);
 
 			// prefer the turret seat so the gunner works the gun, otherwise any free seat
 			int turret_seat = -2;
