@@ -168,7 +168,6 @@ namespace YimMenu::Submenus
 		eventOverride->AddItem(std::make_shared<BoolCommandItem>("eventoverrideenabled"_J));
 		eventOverride->AddItem(std::make_shared<ConditionalItem>("eventoverrideenabled"_J, std::make_shared<ListCommandItem>("eventoverride"_J)));
 		misc->AddItem(std::move(eventOverride));
-		misc->AddItem(std::make_shared<CommandItem>("mapeditor"_J));
 
 		main->AddItem(std::move(poolCounter));
 		main->AddItem(std::move(killPeds));

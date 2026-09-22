@@ -19,5 +19,7 @@ namespace YimMenu
 		virtual void Update(MapControls& controls) override;
 		virtual bool IsPlayerMode() override;
 		virtual std::optional<RaycastResult> Raycast(Entity ignoreEntity) override;
+		virtual void SetSpeed(float speed) override { m_Speed = speed; }
+		virtual float GetSpeed() const override { return m_Speed; }
 	};
 }

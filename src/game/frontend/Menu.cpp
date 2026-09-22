@@ -4,6 +4,7 @@
 #include "core/frontend/manager/UIManager.hpp"
 #include "core/renderer/Renderer.hpp"
 #include "game/backend/FiberPool.hpp"
+#include "game/backend/MapEditor/MapEditor.hpp"
 #include "game/backend/ScriptMgr.hpp"
 #include "game/frontend/fonts/Fonts.hpp"
 #include "game/pointers/Pointers.hpp"
@@ -17,6 +18,7 @@
 #include "submenus/Recovery.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <Windows.h>
 
 namespace YimMenu
@@ -95,22 +97,19 @@ namespace YimMenu
 				ImGui::PopStyleColor();
 				ImGui::PopStyleColor(); 
 
-					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.50f, 1.0f));
-					if (ImGui::Button("Terminate", ImVec2(80, 0)))
+					float rainbow_t = std::fmod((float)ImGui::GetTime() * 0.3f, 1.0f);
+					float rainbow_r, rainbow_g, rainbow_b;
+					ImGui::ColorConvertHSVtoRGB(rainbow_t, 0.85f, 1.0f, rainbow_r, rainbow_g, rainbow_b);
+					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(rainbow_r, rainbow_g, rainbow_b, 1.0f));
+					ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.03f, 0.03f, 0.9f));
+					ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.30f, 0.06f, 0.06f, 1.0f));
+					if (ImGui::Button(MapEditor::IsOpen() ? "God Mode: ON" : "God Mode", ImVec2(140, 0)))
 					{
-						if (ScriptMgr::CanTick())
-						{
-							FiberPool::Push([] {
-								Commands::Shutdown();
-								g_Running = false;
-							});
-						}
-						else
-						{
-							g_Running = false;
-						}
+						FiberPool::Push([] {
+							MapEditor::Toggle();
+						});
 					}
-					ImGui::PopStyleColor();
+					ImGui::PopStyleColor(3);
 
 					UIManager::Draw();
 

@@ -4,6 +4,7 @@
 #include "core/commands/HotkeySystem.hpp"
 #include "core/commands/LoopedCommand.hpp"
 #include "core/commands/ColorCommand.hpp"
+#include "game/backend/FiberPool.hpp"
 #include "game/backend/Self.hpp"
 #include "game/features/Features.hpp"
 #include "game/frontend/items/Items.hpp"
@@ -431,6 +432,15 @@ namespace YimMenu::Submenus
         menuTheme->AddItem(std::make_shared<ImGuiItem>(DrawColorSettings));
 
         misc->AddItem(std::make_shared<BoolCommandItem>("togglemenukey"_J));
+        misc->AddItem(std::make_shared<ImGuiItem>([] {
+            if (ImGui::Button("Terminate (unload cheat)"))
+            {
+                FiberPool::Push([] {
+                    Commands::Shutdown();
+                    g_Running = false;
+                });
+            }
+        }));
 
         syncGroup->AddItem(std::make_shared<BoolCommandItem>("blockspectate"_J));
         syncGroup->AddItem(std::make_shared<BoolCommandItem>("blockspectatesession"_J));
