@@ -67,6 +67,17 @@ namespace YimMenu
 			return GetInstance().m_Entitites.size();
 		}
 
+		static void SetCameraSpeed(float speed)
+		{
+			if (GetInstance().m_Camera)
+				GetInstance().m_Camera->SetSpeed(speed);
+		}
+
+		static rage::fvector3 GetCursorWorldPos()
+		{
+			return GetInstance().GetCursorWorldPosImpl();
+		}
+
 		static void AddEntityToGlobalStore(MapEntity* entity)
 		{
 			GetInstance().AddEntityToGlobalStoreImpl(entity);
@@ -100,6 +111,11 @@ namespace YimMenu
 		static std::shared_ptr<MapEntity> GetEditingEntity(MapEntity::Type type)
 		{
 			return GetInstance().GetEditingEntityImpl(type);
+		}
+
+		static void SpawnPedAt(std::uint32_t model, rage::fvector3 pos)
+		{
+			GetInstance().SpawnPedAtImpl(model, pos);
 		}
 
 		static void ClearEditingEntity()
@@ -150,6 +166,7 @@ namespace YimMenu
 		// object system
 		std::uint32_t AllocateNewIndex();
 		std::shared_ptr<MapEntity> CreateNewEntityOfType(MapEntity::Type type);
+		void SpawnPedAtImpl(std::uint32_t model, rage::fvector3 pos);
 		std::shared_ptr<MapEntity> GetEntityImpl(std::uint32_t index);
 		std::optional<std::uint32_t> GetIndexFromGameEntityImpl(Entity entity);
 		std::uint32_t RegisterEntityImpl(std::shared_ptr<MapEntity> new_entity);
@@ -169,6 +186,7 @@ namespace YimMenu
 		// camera
 		void CreateCamera();
 		void DestroyCamera();
+		rage::fvector3 GetCursorWorldPosImpl(); // raycast hit or point ahead
 
 		// UI
 		std::shared_ptr<MapEntity> GetEditingEntityImpl(MapEntity::Type type); // get selected entity for UI

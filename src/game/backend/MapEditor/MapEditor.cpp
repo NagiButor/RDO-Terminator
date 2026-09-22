@@ -6,6 +6,7 @@
 #include "game/backend/ScriptMgr.hpp"
 #include "game/backend/Self.hpp"
 #include "game/backend/NativeHooks.hpp"
+#include "util/Math.hpp"
 
 #include "Items/MapPed.hpp"
 #include "Items/MapObject.hpp"
@@ -101,6 +102,8 @@ namespace YimMenu
 		static auto noclipCmd = Commands::GetCommand<BoolCommand>("noclip"_J);
 		noclipCmd->SetState(false);
 
+		m_Menu.Setup();
+
 		CreateCamera();
 
 		Self::GetPed().SetVisible(false);
@@ -154,6 +157,15 @@ namespace YimMenu
 		if (auto it = m_Entitites.find(index); it != m_Entitites.end())
 			return it->second;
 		return nullptr;
+	}
+
+	void MapEditor::SpawnPedAtImpl(std::uint32_t model, rage::fvector3 pos)
+	{
+		auto ped = std::make_shared<MapPed>();
+		ped->m_ModelHash = model;
+		ped->m_Position  = pos;
+		RegisterEntityImpl(ped);
+		ped->CreateGameObject(); // async: the game object appears once the model streams in
 	}
 
 	std::optional<std::uint32_t> MapEditor::GetIndexFromGameEntityImpl(Entity entity)
@@ -358,6 +370,25 @@ namespace YimMenu
 
 		m_Camera->Destroy();
 		m_Camera.reset();
+	}
+
+	rage::fvector3 MapEditor::GetCursorWorldPosImpl()
+	{
+		if (m_Camera)
+		{
+			if (auto hit = m_Camera->Raycast(nullptr))
+				return hit->m_Position;
+		}
+
+		// fallback: 20m in front of the player (the ped follows the editor camera)
+		auto pos = Self::GetPed().GetPosition();
+		auto rot = Self::GetPed().GetRotation();
+		auto dir = Math::RotationToDirection(Vector3{rot.x, rot.y, rot.z});
+		rage::fvector3 out;
+		out.x = pos.x + dir.x * 20.f;
+		out.y = pos.y + dir.y * 20.f;
+		out.z = pos.z + dir.z * 20.f;
+		return out;
 	}
 
 	std::shared_ptr<MapEntity> MapEditor::GetEditingEntityImpl(MapEntity::Type type)

@@ -9,9 +9,50 @@
 #include "../Items/MapPed.hpp"
 #include "../Items/MapObject.hpp"
 #include "../Items/MapVehicle.hpp"
+#include "game/backend/Players.hpp"
+#include "game/backend/Self.hpp"
+#include "game/rdr/data/PedModels.hpp"
+#include "game/rdr/data/VehicleModels.hpp"
+#include "game/rdr/data/WeaponTypes.hpp"
+#include "game/rdr/Natives.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <string>
 
 namespace YimMenu
 {
+	struct WeaponDef : ModelDefinition
+	{
+	};
+
+	static const std::vector<WeaponDef>& GetWeaponList()
+	{
+		static const std::vector<WeaponDef> list = [] {
+			std::vector<WeaponDef> v{{0, "None"}};
+			for (const char* w : Data::g_WeaponTypes)
+			{
+				if (w)
+					v.push_back({Joaat(w), w});
+			}
+			return v;
+		}();
+		return list;
+	}
+
+	static void SpawnRingAtCursor(const std::uint32_t* models, std::size_t model_count, int total, float radius)
+	{
+		const auto center = MapEditor::GetCursorWorldPos();
+		for (int i = 0; i < total; ++i)
+		{
+			const float a = 6.2831853f * (float)i / (float)total;
+			rage::fvector3 p;
+			p.x = center.x + std::cos(a) * radius;
+			p.y = center.y + std::sin(a) * radius;
+			p.z = center.z + 0.5f;
+			MapEditor::SpawnPedAt(models[i % model_count], p);
+		}
+	}
 	std::unordered_map<MapEntity::Type, std::vector<NativeMenu::Submenu>> MapEditorMenu::sm_SubmenusByType = {
 	    {MapEntity::Type::PED, {
 			"Actors"sv,
@@ -37,6 +78,11 @@ namespace YimMenu
 		{
 			SubmenuButton("Mission Details", "Mission Details"sv, "Access Mission details");
 			SubmenuButton("Placement", "Placement"sv, "Place items");
+			{
+				static float cam_speed = 0.02f;
+				MapEditor::SetCameraSpeed(cam_speed);
+				FloatOption("Camera Speed", cam_speed, 0.005f, 0.2f, 0.005f, "Fly speed of the editor camera");
+			}
 			if (Button("Clear All Entities", "Delete every placed actor, vehicle and prop"))
 			{
 				if (NativeUI::ShowAlertMessage("Alert", "Delete all placed entities?", "IB_YES"_J, "IB_NO"_J))
@@ -130,6 +176,104 @@ namespace YimMenu
 			SubmenuButton("Actors", "Actors"sv, "Place actors (peds) in the mission");
 			SubmenuButton("Vehicles", "Vehicles"sv, "Place vehicles in the mission");
 			SubmenuButton("Props", "Props"sv, "Place props in the mission");
+			SubmenuButton("Angry of God", "Angry of God"sv, "Lightning, explosions and fire at the cursor");
+			SubmenuButton("Quick Spawn", "Quick Spawn"sv, "Instant packs at the cursor");
+			SubmenuButton("Weapon Spawn", "Weapon Spawn"sv, "Weapon pickups at the cursor");
+			EndSubmenu();
+		}
+
+		if (BeginSubmenu("Angry of God"sv))
+		{
+			if (Button("Lightning at cursor", "Real bolt with damage where the cursor looks"))
+			{
+				const auto p = MapEditor::GetCursorWorldPos();
+				MISC::_FORCE_LIGHTNING_FLASH_AT_COORDS(p.x, p.y, p.z, -1.0f);
+				FIRE::ADD_EXPLOSION(p.x, p.y, p.z, 33, 5.0f, true, false, 5.0f);
+			}
+			if (Button("Explosion at cursor", "Dynamite blast where the cursor looks"))
+			{
+				const auto p = MapEditor::GetCursorWorldPos();
+				FIRE::ADD_EXPLOSION(p.x, p.y, p.z, 25, 5.0f, true, false, 5.0f);
+			}
+			if (Button("Fire at cursor", "Start a lasting fire where the cursor looks"))
+			{
+				const auto p = MapEditor::GetCursorWorldPos();
+				FIRE::START_SCRIPT_FIRE(p.x, p.y, p.z, 10, 0.0f, true, "", 0.0f, 0);
+			}
+			EndSubmenu();
+		}
+
+		if (BeginSubmenu("Quick Spawn"sv))
+		{
+			if (Button("Zombies x10", "Ring of cholera zombies at the cursor"))
+			{
+				static constexpr std::uint32_t kZombies[] = {"A_M_M_ARMCHOLERACORPSE_01"_J, "A_F_M_ARMCHOLERACORPSE_01"_J};
+				SpawnRingAtCursor(kZombies, 2, 10, 6.f);
+			}
+			if (Button("Dutch Gang", "Core gang members ring at the cursor"))
+			{
+				static constexpr std::uint32_t kGang[] = {"cs_dutch"_J, "player_zero"_J, "player_three"_J, "cs_hoseamatthews"_J, "cs_mrsadler"_J, "cs_micahbell"_J, "cs_billwilliamson"_J, "cs_javierescuella"_J, "cs_sean"_J, "cs_lenny"_J, "cs_charlessmith"_J};
+				SpawnRingAtCursor(kGang, 11, 11, 7.f);
+			}
+			EndSubmenu();
+		}
+
+		if (BeginSubmenu("Weapon Spawn"sv))
+		{
+			static std::uint32_t s_spawn_weapon = "WEAPON_REVOLVER_CATTLEMAN"_J;
+
+			auto w_view = CategoryUtils::GetListView(GetWeaponList(), s_spawn_weapon);
+			if (!w_view.m_CurrentEntry)
+				w_view = CategoryUtils::GetListView(GetWeaponList(), "WEAPON_REVOLVER_CATTLEMAN"_J);
+			if (w_view.m_CurrentEntry)
+			{
+				auto w_delta = ListOption("Weapon",
+				    w_view.m_CurrentEntry->m_FriendlyName,
+				    w_view.m_PreviousEntry ? std::optional<std::string_view>(w_view.m_PreviousEntry->m_FriendlyName) : std::nullopt,
+				    w_view.m_NextEntry ? std::optional<std::string_view>(w_view.m_NextEntry->m_FriendlyName) : std::nullopt,
+				    "Weapon to spawn, use left/right to browse all variants");
+				if (w_delta < 0 && w_view.m_PreviousEntry)
+					s_spawn_weapon = w_view.m_PreviousEntry->m_Hash;
+				else if (w_delta > 0 && w_view.m_NextEntry)
+					s_spawn_weapon = w_view.m_NextEntry->m_Hash;
+			}
+
+			if (Button("Spawn pickup at cursor", "Weapon pickup where the cursor looks"))
+			{
+				const auto p = MapEditor::GetCursorWorldPos();
+
+				std::string wname;
+				for (const auto& e : GetWeaponList())
+				{
+					if (e.m_Hash == s_spawn_weapon)
+					{
+						wname = e.m_FriendlyName;
+						break;
+					}
+				}
+
+				bool ok = false;
+				if (!wname.empty() && s_spawn_weapon != 0)
+				{
+					const Object obj = OBJECT::CREATE_PORTABLE_PICKUP(Joaat("PICKUP_" + wname), p.x, p.y, p.z, true, 0);
+					ok               = obj != 0 && ENTITY::DOES_ENTITY_EXIST(obj);
+				}
+
+				if (ok)
+					NativeUI::ShowAlertMessage("Alert", "Weapon pickup spawned", "IB_ACCEPT"_J);
+				else
+					NativeUI::ShowAlertMessage("Alert", "No such pickup in game, given to you instead", "IB_ACCEPT"_J);
+
+				if (!ok && s_spawn_weapon != 0)
+				{
+					const int ped = Self::GetPed().GetHandle();
+					if (ENTITY::DOES_ENTITY_EXIST(ped))
+					{
+						WEAPON::GIVE_WEAPON_TO_PED(ped, s_spawn_weapon, 200, true, false, 0, true, 0.5f, 1.0f, 0x2CD419DC, true, 0.0f, false);
+						WEAPON::SET_CURRENT_PED_WEAPON(ped, s_spawn_weapon, true, 0, false, false);
+					}
+				}
+			}
 			EndSubmenu();
 		}
 
@@ -242,13 +386,89 @@ namespace YimMenu
 				else if (exp_delta > 0)
 					as_ped->m_Expression = exp_view.m_NextEntry->m_Hash;
 
-				float ui_scale = as_ped->m_Scale;
-				if (FloatOption("Scale", ui_scale, 0.50, 1.50, 0.02, "Adjust the scale factor for the Actor"))
+			float ui_scale = as_ped->m_Scale;
+			if (FloatOption("Scale", ui_scale, 0.50, 1.50, 0.02, "Adjust the scale factor for the Actor"))
+			{
+				as_ped->ChangeScale(ui_scale);
+			}
+
+			static constexpr const char* kBehaviors[] = {"Normal", "Friendly", "Aggressive"};
+			{
+				const int cur = std::clamp(as_ped->m_Behavior, 0, 2);
+				auto delta = ListOption("Behavior",
+				    kBehaviors[cur],
+				    cur > 0 ? std::optional<std::string_view>(kBehaviors[cur - 1]) : std::nullopt,
+				    cur < 2 ? std::optional<std::string_view>(kBehaviors[cur + 1]) : std::nullopt,
+				    "Normal = scenario, Friendly = never fights, Aggressive = hunts the target");
+				if (delta != 0)
 				{
-					as_ped->ChangeScale(ui_scale);
+					as_ped->m_Behavior = std::clamp(cur + delta, 0, 2);
+					if (as_ped->m_Behavior != 2 && as_ped->m_GameEntity)
+						TASK::CLEAR_PED_TASKS_IMMEDIATELY(as_ped->m_GameEntity.GetHandle(), true, true);
 				}
 			}
-			EndSubmenu();
+
+			{
+				auto w_view = CategoryUtils::GetListView(GetWeaponList(), as_ped->m_WeaponHash);
+				if (!w_view.m_CurrentEntry)
+					w_view = CategoryUtils::GetListView(GetWeaponList(), 0);
+				if (w_view.m_CurrentEntry)
+				{
+					auto w_delta = ListOption("Weapon",
+					    w_view.m_CurrentEntry->m_FriendlyName,
+					    w_view.m_PreviousEntry ? std::optional<std::string_view>(w_view.m_PreviousEntry->m_FriendlyName) : std::nullopt,
+					    w_view.m_NextEntry ? std::optional<std::string_view>(w_view.m_NextEntry->m_FriendlyName) : std::nullopt,
+					    "Gun put into the Actor's hands");
+					if (w_delta < 0 && w_view.m_PreviousEntry)
+					{
+						as_ped->m_WeaponHash = w_view.m_PreviousEntry->m_Hash;
+						as_ped->ApplyWeapon();
+					}
+					else if (w_delta > 0 && w_view.m_NextEntry)
+					{
+						as_ped->m_WeaponHash = w_view.m_NextEntry->m_Hash;
+						as_ped->ApplyWeapon();
+					}
+				}
+			}
+
+			int ui_hp = as_ped->m_Health;
+			if (IntOption("HP", ui_hp, 0, 5000, 100, "Health of the Actor, 0 = game default"))
+			{
+				as_ped->m_Health = ui_hp;
+				if (as_ped->m_GameEntity && ui_hp > 0)
+					ENTITY::SET_ENTITY_HEALTH(as_ped->m_GameEntity.GetHandle(), ui_hp, 0);
+			}
+
+			if (as_ped->m_Behavior == 2)
+			{
+				std::vector<std::pair<std::uint64_t, std::string>> targets{{0, "Nearest"}};
+				for (auto& [id, player] : Players::GetPlayers())
+				{
+					if (player.IsValid())
+						targets.emplace_back(player.GetRID(), player.GetName());
+				}
+				std::size_t cur = 0;
+				for (std::size_t i = 0; i < targets.size(); ++i)
+				{
+					if (targets[i].first == as_ped->m_TargetRID)
+					{
+						cur = i;
+						break;
+					}
+				}
+				auto t_delta = ListOption("Target",
+				    targets[cur].second,
+				    cur > 0 ? std::optional<std::string_view>(targets[cur - 1].second) : std::nullopt,
+				    cur + 1 < targets.size() ? std::optional<std::string_view>(targets[cur + 1].second) : std::nullopt,
+				    "Player the aggressive Actor hunts");
+				if (t_delta < 0 && cur > 0)
+					as_ped->m_TargetRID = targets[cur - 1].first;
+				else if (t_delta > 0 && cur + 1 < targets.size())
+					as_ped->m_TargetRID = targets[cur + 1].first;
+			}
+		}
+		EndSubmenu();
 		}
 
 		if (BeginSubmenu("Props"sv))
@@ -380,7 +600,49 @@ namespace YimMenu
 
 	void MapEditorMenu::Setup()
 	{
-		
+		// build the generated categories once: horses, animals, all humans, all vehicles
+		static bool categories_built = false;
+		if (categories_built)
+			return;
+		categories_built = true;
+
+		auto sorted_by_name = [](const auto& a, const auto& b) {
+			return std::string(a.m_FriendlyName) < std::string(b.m_FriendlyName);
+		};
+
+		{
+			std::vector<PedModelDefinition> horses, animals, humans;
+			for (const auto& [hash, model] : Data::g_PedModels)
+			{
+				if (!model)
+					continue;
+				const std::string name = model;
+				if (name.rfind("A_C_Horse", 0) == 0)
+					horses.push_back({hash, model, 1});
+				else if (name.rfind("A_C_", 0) == 0)
+					animals.push_back({hash, model, 1});
+				else
+					humans.push_back({hash, model, 1});
+			}
+			std::sort(horses.begin(), horses.end(), sorted_by_name);
+			std::sort(animals.begin(), animals.end(), sorted_by_name);
+			std::sort(humans.begin(), humans.end(), sorted_by_name);
+			if (!horses.empty())
+				g_PedCategories.emplace_back("Horses", std::move(horses));
+			if (!animals.empty())
+				g_PedCategories.emplace_back("Animals", std::move(animals));
+			if (!humans.empty())
+				g_PedCategories.emplace_back("All Humans", std::move(humans));
+		}
+
+		{
+			std::vector<VehicleModelDefinition> all;
+			for (const auto& v : Data::g_VehicleModels)
+				all.push_back({Joaat(v.model), v.name.c_str()});
+			std::sort(all.begin(), all.end(), sorted_by_name);
+			if (!all.empty())
+				g_VehicleCategories.emplace_back("All Vehicles", std::move(all));
+		}
 	}
 
 	void MapEditorMenu::Update(MapControls& controls)
