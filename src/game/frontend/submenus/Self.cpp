@@ -723,6 +723,7 @@ namespace YimMenu::Submenus
 		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("neverwanted"_J));
 		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("invis"_J));
 		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("offtheradar"_J));
+		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("ghostmode"_J, "Ghost Mode"));
 		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("noragdoll"_J));
 		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("antiafk"_J));
 		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("keepbarsfilled"_J));
