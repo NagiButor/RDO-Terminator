@@ -114,12 +114,15 @@ namespace YimMenu::Features::AttackWaves
         Cleanup(spawned);
 
         int wanted = std::min(config.count, kMaxSpawnPerCall);
-        const int live = (int)spawned.size();
-        if (live >= kMaxLiveAttackers)
-            return 0;
-        wanted = std::min(wanted, kMaxLiveAttackers - live);
-        if (wanted <= 0)
-            return 0;
+        if (!config.unlimited)
+        {
+            const int live = (int)spawned.size();
+            if (live >= kMaxLiveAttackers)
+                return 0;
+            wanted = std::min(wanted, kMaxLiveAttackers - live);
+            if (wanted <= 0)
+                return 0;
+        }
 
         // Pre-request the models the same way IndianAttack does. Ped::Create on
         // its own only waits ~30 ticks for a model to stream in, which is not

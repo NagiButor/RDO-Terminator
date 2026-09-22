@@ -12,6 +12,7 @@
 namespace YimMenu::Features
 {
     static std::vector<int> zombie_index;
+    static int zombie_cooldown = 0;
 
     static AttackWaves::Config GetZombieConfig()
     {
@@ -19,6 +20,7 @@ namespace YimMenu::Features
         config.models = {"A_M_M_ARMCHOLERACORPSE_01", "A_F_M_ARMCHOLERACORPSE_01"};
         config.weapons = {"WEAPON_MELEE_KNIFE"};
         config.weapon_chance = 0.5f; // every zombie flips a coin for the knife
+        config.unlimited = true; // the game reads them as corpses: waves pile into a real horde
         config.count = 10;
         config.distance = 45.f;
         config.move_rate = 1.1f; // shambling horde, still catches walking targets
@@ -42,15 +44,29 @@ namespace YimMenu::Features
                 return;
             }
 
-            if (zombie_index.empty())
-                AttackWaves::SpawnWave(player_ped.GetHandle(), GetZombieConfig(), zombie_index);
+            // only forget the dead (their corpses stay in the world) -- never gate on the living
+            AttackWaves::Cleanup(zombie_index);
 
+            if (zombie_cooldown > 0)
+            {
+                --zombie_cooldown;
+                return;
+            }
+
+            if (AttackWaves::SpawnWave(player_ped.GetHandle(), GetZombieConfig(), zombie_index) == 0)
+            {
+                zombie_cooldown = 300;
+                return;
+            }
+
+            zombie_cooldown = 600; // next wave of 10 piles onto the horde
             AttackWaves::Cleanup(zombie_index);
         }
 
         void OnEnable() override
         {
-            Notifications::Show("Zombie Attack", std::string("Releasing zombies on ") + Players::GetSelected().GetName(), NotificationType::Info);
+            zombie_cooldown = 0;
+            Notifications::Show("Zombie Attack", std::string("Raising a horde on ") + Players::GetSelected().GetName(), NotificationType::Info);
         }
 
         void OnDisable() override
@@ -60,5 +76,5 @@ namespace YimMenu::Features
         }
     };
 
-    static ZombieAttack _ZombieAttack{"zombieattack", "Zombie Attack", "Spawns 10 cholera zombies (half armed with knives) that hunt down the selected player."};
+    static ZombieAttack _ZombieAttack{"zombieattack", "Zombie Attack", "Endless waves of 10 cholera zombies (half armed with knives) piling onto the selected player."};
 }
