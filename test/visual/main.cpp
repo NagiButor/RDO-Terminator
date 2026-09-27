@@ -3,6 +3,7 @@
 // no game backend: entity data, camera projection and the task queue are faked.
 #include "MockEspWorld.hpp"
 #include "EspLabPanel.hpp"
+#include "DummyMesh.hpp"
 #include "stubs/TestTasks.hpp"
 
 #include "game/frontend/Menu.hpp"
@@ -35,6 +36,8 @@ namespace
 	ID3D11DeviceContext* g_Context       = nullptr;
 	IDXGISwapChain* g_SwapChain          = nullptr;
 	ID3D11RenderTargetView* g_MainRTV    = nullptr;
+	ID3D11Texture2D* g_DepthStencil      = nullptr;
+	ID3D11DepthStencilView* g_DepthView  = nullptr;
 	bool g_SwapChainOccluded             = false;
 	UINT g_ResizeWidth                   = 0;
 	UINT g_ResizeHeight                  = 0;
@@ -81,6 +84,16 @@ namespace
 			g_MainRTV->Release();
 			g_MainRTV = nullptr;
 		}
+		if (g_DepthView)
+		{
+			g_DepthView->Release();
+			g_DepthView = nullptr;
+		}
+		if (g_DepthStencil)
+		{
+			g_DepthStencil->Release();
+			g_DepthStencil = nullptr;
+		}
 		if (g_SwapChain)
 		{
 			g_SwapChain->Release();
@@ -103,7 +116,22 @@ namespace
 		ID3D11Texture2D* backBuffer = nullptr;
 		g_SwapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer));
 		g_Device->CreateRenderTargetView(backBuffer, nullptr, &g_MainRTV);
+
+		D3D11_TEXTURE2D_DESC backDesc{};
+		backBuffer->GetDesc(&backDesc);
 		backBuffer->Release();
+
+		D3D11_TEXTURE2D_DESC dsDesc{};
+		dsDesc.Width          = backDesc.Width;
+		dsDesc.Height         = backDesc.Height;
+		dsDesc.MipLevels      = 1;
+		dsDesc.ArraySize      = 1;
+		dsDesc.Format         = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		dsDesc.SampleDesc     = {1, 0};
+		dsDesc.Usage          = D3D11_USAGE_DEFAULT;
+		dsDesc.BindFlags      = D3D11_BIND_DEPTH_STENCIL;
+		if (SUCCEEDED(g_Device->CreateTexture2D(&dsDesc, nullptr, &g_DepthStencil)))
+			g_Device->CreateDepthStencilView(g_DepthStencil, nullptr, &g_DepthView);
 	}
 
 	void CleanupRenderTarget()
@@ -112,6 +140,16 @@ namespace
 		{
 			g_MainRTV->Release();
 			g_MainRTV = nullptr;
+		}
+		if (g_DepthView)
+		{
+			g_DepthView->Release();
+			g_DepthView = nullptr;
+		}
+		if (g_DepthStencil)
+		{
+			g_DepthStencil->Release();
+			g_DepthStencil = nullptr;
 		}
 	}
 
@@ -139,10 +177,9 @@ namespace
 		return ::DefWindowProcW(hwnd, msg, wparam, lparam);
 	}
 
-	// Fake 3D backdrop: sky fill, horizon and a projected ground grid, plus a
-	// faint body capsule where the scripted actor stands. The real ESP overlay
-	// is drawn on top of this, exactly like over the game frame.
-	void DrawFakeScene(YimMenu::MockEspWorld& world, ImDrawList* drawList)
+	// Fake 3D backdrop: sky fill, horizon and a projected ground grid. The real ESP
+	// overlay (and the crash-dummy mesh pass) draw on top of this, like over a game frame.
+	void DrawFakeScene(YimMenu::MockEspWorld& world, ImDrawList* drawList, bool drawCapsule)
 	{
 		const float w = (float)world.m_Camera.m_Width;
 		const float h = (float)world.m_Camera.m_Height;
@@ -168,18 +205,23 @@ namespace
 		}
 
 		// faint capsule marking the scripted body behind the ESP skeleton
-		const ImVec2 head = world.Project(world.m_Actor.GetBone(21030));
-		const ImVec2 feet = world.Project({world.m_Actor.m_Pos.x, world.m_Actor.m_Pos.y, 0.f});
-		if (head.x != 0 && feet.x != 0)
+		// (only when the crash-dummy mesh failed to load)
+		if (drawCapsule)
 		{
-			const float halfW = std::max(4.f, (feet.y - head.y) * 0.14f);
-			drawList->AddRectFilled({head.x - halfW, head.y}, {head.x + halfW, feet.y}, IM_COL32(150, 130, 110, 70));
+			const ImVec2 head = world.Project(world.m_Actor.GetBone(21030));
+			const ImVec2 feet = world.Project({world.m_Actor.m_Pos.x, world.m_Actor.m_Pos.y, 0.f});
+			if (head.x != 0 && feet.x != 0)
+			{
+				const float halfW = std::max(4.f, (feet.y - head.y) * 0.14f);
+				drawList->AddRectFilled({head.x - halfW, head.y}, {head.x + halfW, feet.y}, IM_COL32(150, 130, 110, 70));
+			}
 		}
 	}
 } // namespace
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 {
+	::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 	WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, WndProc, 0, 0, instance, nullptr, nullptr, nullptr, nullptr, L"Mi5hlenVisualTest", nullptr};
 	::RegisterClassExW(&wc);
 	g_Hwnd = ::CreateWindowW(wc.lpszClassName, L"RDO Terminator - Visual Test (fake scene)", WS_OVERLAPPEDWINDOW,
@@ -220,6 +262,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 	YimMenu::MockEspWorld world;
 	world.m_Camera.m_Width  = 1280;
 	world.m_Camera.m_Height = 800;
+
+	YimMenu::DummyMesh dummyMesh;
+	dummyMesh.Load(g_Device, L"E:\\Downloads\\crash_dummy\\scene.gltf");
 
 	auto lastTime = std::chrono::steady_clock::now();
 	bool prevToggleKey = false;
@@ -277,7 +322,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 		ImGui::NewFrame();
 
 		if (ImDrawList* bg = ImGui::GetBackgroundDrawList())
-			DrawFakeScene(world, bg);
+			DrawFakeScene(world, bg, !dummyMesh.IsLoaded());
 
 		YimMenu::ESP::Draw(world);
 
@@ -296,12 +341,19 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 		ctx.m_Settings = &g_SettingsInstance;
 		YimMenu::Menu::DrawShell(ctx);
 
-		YimMenu::DrawEspLabPanel(world);
+		YimMenu::DrawEspLabPanel(world, dummyMesh);
 
 		ImGui::Render();
+
+		float view[16], proj[16];
+		world.ComputeMatrices(view, proj);
+		g_Context->OMSetRenderTargets(1, &g_MainRTV, g_DepthView);
 		const float clearCol[4] = {0.05f, 0.06f, 0.08f, 1.f};
-		g_Context->OMSetRenderTargets(1, &g_MainRTV, nullptr);
 		g_Context->ClearRenderTargetView(g_MainRTV, clearCol);
+		if (g_DepthView)
+			g_Context->ClearDepthStencilView(g_DepthView, D3D11_CLEAR_DEPTH, 1.f, 0);
+		dummyMesh.Render(g_Context, view, proj, world.m_Actor.m_Pos.x, world.m_Actor.m_Pos.y, world.m_Actor.m_Pos.z);
+
 		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
 		HRESULT present = g_SwapChain->Present(1, 0);
@@ -317,5 +369,6 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 	CleanupDeviceD3D();
 	::DestroyWindow(g_Hwnd);
 	::UnregisterClassW(wc.lpszClassName, instance);
+	::CoUninitialize();
 	return 0;
 }

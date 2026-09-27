@@ -1,7 +1,9 @@
 #include "ESP.hpp"
 #include "game/frontend/esp/EspWorld.hpp"
+#include "game/frontend/Menu.hpp"
 #include "core/commands/BoolCommand.hpp"
 #include "core/commands/ColorCommand.hpp"
+#include "core/commands/ListCommand.hpp"
 #include "imgui.h"
 
 #include <algorithm>
@@ -64,6 +66,11 @@ namespace
     constexpr int horseRearRightFootBone  = 33646;
     constexpr int horseRearRightToeBone0  = 41273;
     constexpr int horseRearRightToeBone1  = 41274;
+
+    // text tags fade out beyond this, boxes/bars stay at minimum alpha
+    constexpr float kTextFadeDistance = 150.f;
+    constexpr float kBoxFadeDistance  = 300.f;
+    constexpr float kHpNumberDistance = 60.f;
 } // namespace
 
 namespace YimMenu::Features
@@ -75,6 +82,8 @@ namespace YimMenu::Features
     BoolCommand _ESPHealth("esphealthplayers", "Show Player Health", "Should the ESP draw player HP bars?");
     BoolCommand _ESPDistance("espdistanceplayers", "Show Player Distance", "Should the ESP draw player distance?");
     BoolCommand _ESPSkeleton("espskeletonplayers", "Show Player Skeleton", "Should the ESP draw player skeletons?");
+    ListCommand _ESPBoxPlayers("espboxplayers", "Box Style", "Bounding box around players", {{0, "Off"}, {1, "Corners"}, {2, "Full"}}, 1);
+    BoolCommand _ESPSnaplinePlayers("espsnaplineplayers", "Show Snapline", "Line from the bottom of the screen to the player");
 
     // Initialize colors with alpha set to 1.0f (fully opaque)
     ColorCommand _NameColorPlayers("namecolorplayers", "Player Name Color", "Changes the color of the name ESP for players", ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f });
@@ -90,6 +99,11 @@ namespace YimMenu::Features
     BoolCommand _ESPDistancePeds("espdistancepeds", "Show Ped Distance", "Should the ESP draw distance?");
     BoolCommand _ESPSkeletonPeds("espskeletonpeds", "Show Ped Skeleton", "Should the ESP draw the skeleton?");
     BoolCommand _ESPSkeletonHorse("espskeletonhorse", "Show Horse Skeleton", "Should the ESP draw horse skeletons?");
+    ListCommand _ESPBoxPeds("espboxpeds", "Box Style", "Bounding box around peds", {{0, "Off"}, {1, "Corners"}, {2, "Full"}}, 1);
+    BoolCommand _ESPSnaplinePeds("espsnaplinepeds", "Show Snapline", "Line from the bottom of the screen to the ped");
+
+    // Global: dim targets without line of sight (game only, throttled in the adapter)
+    BoolCommand _ESPVisibilityCheck("espvisibilitycheck", "Visibility Check", "Dim targets behind walls", false);
 
     // Initialize colors with alpha set to 1.0f (fully opaque)
     ColorCommand _HashColorPeds("hashcolorpeds", "Ped Hash Color", "Changes the color of the hash ESP for peds", ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f });
@@ -100,10 +114,17 @@ namespace YimMenu::Features
 
 namespace YimMenu
 {
-    static ImVec4 Green  = ImVec4(0.29f, 0.69f, 0.34f, 1.f);
-    static ImVec4 Orange = ImVec4(0.69f, 0.49f, 0.29f, 1.f);
-    static ImVec4 Red    = ImVec4(0.69f, 0.29f, 0.29f, 1.f);
-    static ImVec4 Blue   = ImVec4(0.36f, 0.71f, 0.89f, 1.f);
+    static ImColor Green  = ImColor(0.29f, 0.69f, 0.34f, 1.f);
+    static ImColor Orange = ImColor(0.69f, 0.49f, 0.29f, 1.f);
+    static ImColor Red    = ImColor(0.69f, 0.29f, 0.29f, 1.f);
+    static ImColor Blue   = ImColor(0.36f, 0.71f, 0.89f, 1.f);
+
+    static ImColor WithAlpha(ImColor color, float alpha)
+    {
+        ImVec4 v = color;
+        v.w *= alpha;
+        return ImColor(v);
+    }
 
     ImColor ESP::GetColorBasedOnDistance(float distance)
     {
@@ -117,7 +138,91 @@ namespace YimMenu
 
     void ESP::DrawTextInfo(ImDrawList* drawList, const ImVec2& position, const std::string& text, ImColor color)
     {
+        DrawOutlinedText(drawList, position, text, color);
+    }
+
+    void ESP::DrawOutlinedText(ImDrawList* drawList, const ImVec2& position, const std::string& text, ImColor color)
+    {
+        const ImU32 outline = IM_COL32(0, 0, 0, (int)(color.Value.w * 230));
+        drawList->AddText({position.x - 1.f, position.y}, outline, text.c_str());
+        drawList->AddText({position.x + 1.f, position.y}, outline, text.c_str());
+        drawList->AddText({position.x, position.y - 1.f}, outline, text.c_str());
+        drawList->AddText({position.x, position.y + 1.f}, outline, text.c_str());
         drawList->AddText(position, color, text.c_str());
+    }
+
+    void ESP::DrawCenteredText(ImDrawList* drawList, float centerX, float y, const std::string& text, ImColor color)
+    {
+        const ImVec2 size = ImGui::CalcTextSize(text.c_str());
+        DrawOutlinedText(drawList, {centerX - size.x / 2.f, y}, text, color);
+    }
+
+    bool ESP::CalcBox(IEspActor& actor, const IEspWorld& world, ImVec2& outMin, ImVec2& outMax)
+    {
+        const ImVec2 head = world.Project(actor.GetBone(headBone));
+        if (head.x == 0)
+            return false;
+
+        const rage::fvector3 leftFoot  = actor.GetBone(leftFootBone);
+        const rage::fvector3 rightFoot = actor.GetBone(rightFootBone);
+        const rage::fvector3 midFeet{(leftFoot.x + rightFoot.x) / 2.f, (leftFoot.y + rightFoot.y) / 2.f, (leftFoot.z + rightFoot.z) / 2.f};
+        const ImVec2 feet = world.Project(midFeet);
+        if (feet.x == 0)
+            return false;
+
+        const float h = feet.y - head.y;
+        if (h < 4.f)
+            return false;
+
+        const float w = std::max(10.f, h * 0.45f);
+        outMin        = {head.x - w / 2.f, head.y};
+        outMax        = {head.x + w / 2.f, head.y + h};
+        return true;
+    }
+
+    void ESP::DrawCornerBox(ImDrawList* drawList, const ImVec2& boxMin, const ImVec2& boxMax, ImColor color, float thickness)
+    {
+        const float w   = boxMax.x - boxMin.x;
+        const float h   = boxMax.y - boxMin.y;
+        const float len = std::clamp(std::min(w, h) * 0.3f, 6.f, 40.f);
+
+        // top-left
+        drawList->AddLine(boxMin, {boxMin.x + len, boxMin.y}, color, thickness);
+        drawList->AddLine(boxMin, {boxMin.x, boxMin.y + len}, color, thickness);
+        // top-right
+        drawList->AddLine({boxMax.x, boxMin.y}, {boxMax.x - len, boxMin.y}, color, thickness);
+        drawList->AddLine({boxMax.x, boxMin.y}, {boxMax.x, boxMin.y + len}, color, thickness);
+        // bottom-left
+        drawList->AddLine({boxMin.x, boxMax.y}, {boxMin.x + len, boxMax.y}, color, thickness);
+        drawList->AddLine({boxMin.x, boxMax.y}, {boxMin.x, boxMax.y - len}, color, thickness);
+        // bottom-right
+        drawList->AddLine(boxMax, {boxMax.x - len, boxMax.y}, color, thickness);
+        drawList->AddLine(boxMax, {boxMax.x, boxMax.y - len}, color, thickness);
+    }
+
+    void ESP::DrawFullBox(ImDrawList* drawList, const ImVec2& boxMin, const ImVec2& boxMax, ImColor color, float thickness)
+    {
+        drawList->AddRect(boxMin, boxMax, color, 0.f, 0, thickness);
+    }
+
+    void ESP::DrawSnapline(ImDrawList* drawList, const ImVec2& boxMin, const ImVec2& boxMax, const ImVec2& screenSize, ImColor color)
+    {
+        drawList->AddLine({screenSize.x / 2.f, screenSize.y}, {(boxMin.x + boxMax.x) / 2.f, boxMax.y}, WithAlpha(color, 0.6f), 1.f);
+    }
+
+    void ESP::DrawSideHealthBar(ImDrawList* drawList, const ImVec2& boxMin, const ImVec2& boxMax, float frac, float distance)
+    {
+        const float barW = 4.f;
+        const float barX = boxMin.x - barW - 3.f;
+        const ImVec2 bgMin{barX, boxMin.y};
+        const ImVec2 bgMax{barX + barW, boxMax.y};
+        drawList->AddRectFilled(bgMin, bgMax, IM_COL32(0, 0, 0, 180));
+        ImColor bar_color = frac > 0.5f ? Green : (frac > 0.25f ? Orange : Red);
+        const float h     = bgMax.y - bgMin.y;
+        drawList->AddRectFilled({bgMin.x, bgMax.y - h * frac}, bgMax, bar_color);
+
+        if (distance < kHpNumberDistance)
+            DrawOutlinedText(drawList, {bgMin.x - 2.f, bgMax.y + 2.f}, std::to_string((int)(frac * 100.f)), IM_COL32(255, 255, 255, 255));
     }
 
     void ESP::DrawSkeleton(IEspActor& actor, const IEspWorld& world, ImDrawList* drawList, ImColor color)
@@ -220,51 +325,65 @@ namespace YimMenu
         if (!plyr.IsValid() || plyr.IsSelf() || world.Project(plyr.GetBone(torsoBone)).x == 0 || (plyr.IsDead() && !Features::_ESPDrawDeadPlayers.GetState()))
             return;
 
-        float distanceToPlayer       = plyr.GetDistance();
-        ImColor colorBasedOnDistance = GetColorBasedOnDistance(distanceToPlayer);
+        const float distanceToPlayer = plyr.GetDistance();
+        const bool showText          = distanceToPlayer <= kTextFadeDistance;
+        float fade                   = std::clamp(1.15f - distanceToPlayer / kBoxFadeDistance, 0.25f, 1.f);
+        if (!plyr.IsVisible())
+            fade *= 0.45f;
 
-        const auto originalFontSize = ImGui::GetFont()->Scale;
-        auto* currentFont           = ImGui::GetFont();
-        currentFont->Scale *= 1.2;
-        ImGui::PushFont(ImGui::GetFont());
+        ImColor baseColor = plyr.IsSelected() ? Blue : GetColorBasedOnDistance(distanceToPlayer);
+        baseColor         = WithAlpha(baseColor, fade);
 
-        if (Features::_ESPName.GetState())
-        {
-            auto headPos = world.Project(plyr.GetBone(headBone));
-            DrawTextInfo(drawList, headPos, plyr.GetName(), plyr.IsSelected() ? Blue : Features::_NameColorPlayers.GetState());
-        }
+        if (Menu::Font::g_EspFont)
+            ImGui::PushFont(Menu::Font::g_EspFont);
 
-        if (Features::_ESPDistance.GetState())
-        {
-            auto headPos          = world.Project(plyr.GetBone(headBone));
-            std::string distanceStr = std::to_string(static_cast<int>(distanceToPlayer)) + "m";
-            DrawTextInfo(drawList, { headPos.x, headPos.y + 20 }, distanceStr, colorBasedOnDistance);
-        }
+        ImVec2 boxMin{}, boxMax{};
+        const bool hasBox = CalcBox(plyr, world, boxMin, boxMax);
+        const int boxMode = Features::_ESPBoxPlayers.GetState();
+        if (hasBox && boxMode == 1)
+            DrawCornerBox(drawList, boxMin, boxMax, baseColor);
+        else if (hasBox && boxMode == 2)
+            DrawFullBox(drawList, boxMin, boxMax, baseColor);
+
+        if (hasBox && Features::_ESPSnaplinePlayers.GetState() && plyr.IsVisible())
+            DrawSnapline(drawList, boxMin, boxMax, world.GetScreenSize(), baseColor);
+
+        const float centerX = hasBox ? (boxMin.x + boxMax.x) / 2.f : world.Project(plyr.GetBone(headBone)).x;
+        if (Features::_ESPName.GetState() && showText)
+            DrawCenteredText(drawList, centerX, boxMin.y - 13.f, plyr.GetName(),
+                WithAlpha(plyr.IsSelected() ? Blue : ImColor(Features::_NameColorPlayers.GetState()), fade));
+
+        if (Features::_ESPDistance.GetState() && showText)
+            DrawCenteredText(drawList, centerX, boxMax.y + 3.f, std::to_string(static_cast<int>(distanceToPlayer)) + "m",
+                WithAlpha(ImColor(Features::_DistanceColorPlayers.GetState()), fade));
 
         if (Features::_ESPHealth.GetState())
         {
-            auto headPos   = world.Project(plyr.GetBone(headBone));
-            const int hp     = plyr.GetHealth();
-            const int max_hp = plyr.GetMaxHealth();
-            const float frac = max_hp > 0 ? std::clamp((float)hp / (float)max_hp, 0.f, 1.f) : 0.f;
-
-            // HP bar under the distance text
-            const float bar_w = 60.f;
-            const ImVec2 bar_min{headPos.x - bar_w / 2.f, headPos.y + 38};
-            const ImVec2 bar_max{headPos.x + bar_w / 2.f, headPos.y + 43};
-            drawList->AddRectFilled(bar_min, bar_max, IM_COL32(0, 0, 0, 160));
-            ImColor bar_color = frac > 0.5f ? Green : (frac > 0.25f ? Orange : Red);
-            drawList->AddRectFilled(bar_min, {bar_min.x + bar_w * frac, bar_max.y}, bar_color);
-
-            DrawTextInfo(drawList, {headPos.x - bar_w / 2.f, headPos.y + 45}, std::to_string(hp), IM_COL32(255, 255, 255, 255));
+            const float frac = plyr.GetMaxHealth() > 0 ? std::clamp((float)plyr.GetHealth() / (float)plyr.GetMaxHealth(), 0.f, 1.f) : 0.f;
+            if (hasBox)
+            {
+                DrawSideHealthBar(drawList, boxMin, boxMax, frac, distanceToPlayer);
+            }
+            else
+            {
+                auto headPos = world.Project(plyr.GetBone(headBone));
+                const float bar_w = 60.f;
+                const ImVec2 bar_min{headPos.x - bar_w / 2.f, headPos.y + 38};
+                const ImVec2 bar_max{headPos.x + bar_w / 2.f, headPos.y + 43};
+                drawList->AddRectFilled(bar_min, bar_max, IM_COL32(0, 0, 0, 160));
+                ImColor bar_color = frac > 0.5f ? Green : (frac > 0.25f ? Orange : Red);
+                drawList->AddRectFilled(bar_min, {bar_min.x + bar_w * frac, bar_max.y}, bar_color);
+                if (showText)
+                    DrawOutlinedText(drawList, {headPos.x - bar_w / 2.f, headPos.y + 45}, std::to_string(plyr.GetHealth()), IM_COL32(255, 255, 255, 255));
+            }
         }
 
-        currentFont->Scale = originalFontSize;
-        ImGui::PopFont();
+        if (Menu::Font::g_EspFont)
+            ImGui::PopFont();
 
         if (Features::_ESPSkeleton.GetState() && !plyr.IsAnimal() && distanceToPlayer < 250.f)
         {
-            DrawSkeleton(plyr, world, drawList, ImGui::ColorConvertFloat4ToU32(Features::_SkeletonColorPlayers.GetState()));
+            DrawSkeleton(plyr, world, drawList, WithAlpha(ImGui::ColorConvertFloat4ToU32(Features::_SkeletonColorPlayers.GetState()), fade));
         }
     }
 
@@ -273,39 +392,49 @@ namespace YimMenu
         if (!ped.IsValid() || ped.IsSelf() || world.Project(ped.GetBone(torsoBone)).x == 0 || (ped.IsDead() && !Features::_ESPDrawDeadPeds.GetState()))
             return;
 
-        float distanceToPed          = ped.GetDistance();
-        ImColor colorBasedOnDistance = GetColorBasedOnDistance(distanceToPed);
+        const float distanceToPed = ped.GetDistance();
+        const bool showText       = distanceToPed <= kTextFadeDistance;
+        float fade                = std::clamp(1.15f - distanceToPed / kBoxFadeDistance, 0.25f, 1.f);
+        if (!ped.IsVisible())
+            fade *= 0.45f;
 
-        const auto originalFontSize = ImGui::GetFont()->Scale;
-        auto* currentFont           = ImGui::GetFont();
-        currentFont->Scale *= 1.2;
-        ImGui::PushFont(ImGui::GetFont());
+        ImColor baseColor = WithAlpha(GetColorBasedOnDistance(distanceToPed), fade);
 
+        if (Menu::Font::g_EspFont)
+            ImGui::PushFont(Menu::Font::g_EspFont);
+
+        ImVec2 boxMin{}, boxMax{};
+        const bool hasBox = CalcBox(ped, world, boxMin, boxMax);
+        const int boxMode = Features::_ESPBoxPeds.GetState();
+        if (hasBox && boxMode == 1)
+            DrawCornerBox(drawList, boxMin, boxMax, baseColor);
+        else if (hasBox && boxMode == 2)
+            DrawFullBox(drawList, boxMin, boxMax, baseColor);
+
+        if (hasBox && Features::_ESPSnaplinePeds.GetState() && ped.IsVisible())
+            DrawSnapline(drawList, boxMin, boxMax, world.GetScreenSize(), baseColor);
+
+        const float centerX = hasBox ? (boxMin.x + boxMax.x) / 2.f : world.Project(ped.GetBone(headBone)).x;
         const std::string info = ped.GetInfo();
-        if (!info.empty())
-        {
-            auto headPos = world.Project(ped.GetBone(headBone));
-            DrawTextInfo(drawList, headPos, info, ImGui::ColorConvertFloat4ToU32(Features::_HashColorPeds.GetState()));
-        }
+        if (!info.empty() && showText)
+            DrawCenteredText(drawList, centerX, boxMin.y - 13.f,
+                info, WithAlpha(ImGui::ColorConvertFloat4ToU32(Features::_HashColorPeds.GetState()), fade));
 
-        if (Features::_ESPDistancePeds.GetState())
-        {
-            auto headPos          = world.Project(ped.GetBone(headBone));
-            std::string distanceStr = std::to_string(static_cast<int>(distanceToPed)) + "m";
-            DrawTextInfo(drawList, { headPos.x, headPos.y + 20 }, distanceStr, colorBasedOnDistance);
-        }
+        if (Features::_ESPDistancePeds.GetState() && showText)
+            DrawCenteredText(drawList, centerX, boxMax.y + 3.f, std::to_string(static_cast<int>(distanceToPed)) + "m",
+                WithAlpha(ImColor(Features::_DistanceColorPeds.GetState()), fade));
 
-        currentFont->Scale = originalFontSize;
-        ImGui::PopFont();
+        if (Menu::Font::g_EspFont)
+            ImGui::PopFont();
 
         if (Features::_ESPSkeletonPeds.GetState() && !ped.IsAnimal() && distanceToPed < 250.f)
         {
-            DrawSkeleton(ped, world, drawList, ImGui::ColorConvertFloat4ToU32(Features::_SkeletonColorPeds.GetState()));
+            DrawSkeleton(ped, world, drawList, WithAlpha(ImGui::ColorConvertFloat4ToU32(Features::_SkeletonColorPeds.GetState()), fade));
         }
 
         if (Features::_ESPSkeletonHorse.GetState() && ped.IsHorse() && distanceToPed < 250.f)
         {
-            DrawHorseSkeleton(ped, world, drawList, ImGui::ColorConvertFloat4ToU32(Features::_SkeletonColorHorse.GetState()));
+            DrawHorseSkeleton(ped, world, drawList, WithAlpha(ImGui::ColorConvertFloat4ToU32(Features::_SkeletonColorHorse.GetState()), fade));
         }
     }
 

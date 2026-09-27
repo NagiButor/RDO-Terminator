@@ -44,7 +44,10 @@ namespace YimMenu::Menu
 		inline ImFont* g_ChatFont   = nullptr;
 		inline float g_ChatFontSize = 24.0f;
 
-		inline ImFont* g_OverlayFont = nullptr;
+	    inline ImFont* g_OverlayFont = nullptr;
 		inline float g_OverlayFontSize  = 30.0f;
+
+	    // tiny monospace bitmap font for ESP tags (crisp at small sizes)
+	    inline ImFont* g_EspFont = nullptr;
 	}
 }

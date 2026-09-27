@@ -105,52 +105,110 @@ namespace YimMenu
 
 	ImVec2 MockEspWorld::Project(const rage::fvector3& world) const
 	{
-		float yaw = m_Camera.m_YawDeg;
-		float pitch = m_Camera.m_PitchDeg;
+		float view[16], proj[16];
+		ComputeMatrices(view, proj);
+
+		const float tx = world.x * view[0] + world.y * view[4] + world.z * view[8] + view[12];
+		const float ty = world.x * view[1] + world.y * view[5] + world.z * view[9] + view[13];
+		const float tz = world.x * view[2] + world.y * view[6] + world.z * view[10] + view[14];
+		const float tw = world.x * view[3] + world.y * view[7] + world.z * view[11] + view[15];
+
+		const float cx = tx * proj[0] + ty * proj[4] + tz * proj[8] + tw * proj[12];
+		const float cy = tx * proj[1] + ty * proj[5] + tz * proj[9] + tw * proj[13];
+		const float cw = tx * proj[3] + ty * proj[7] + tz * proj[11] + tw * proj[15];
+
+		if (cw <= 0.01f)
+			return ImVec2(0, 0); // behind the camera
+
+		const float ndcX = cx / cw;
+		const float ndcY = cy / cw;
+		return ImVec2((ndcX * 0.5f + 0.5f) * (float)m_Camera.m_Width, (0.5f - ndcY * 0.5f) * (float)m_Camera.m_Height);
+	}
+
+	void MockEspWorld::ComputeForward(float& fx, float& fy, float& fz) const
+	{
 		if (m_Camera.m_Track)
 		{
-			const rage::fvector3 torso{m_Actor.m_Pos.x, m_Actor.m_Pos.y, m_Actor.m_Pos.z + 1.15f};
-			const float dx = torso.x - m_Camera.m_Pos.x;
-			const float dy = torso.y - m_Camera.m_Pos.y;
-			const float dz = torso.z - m_Camera.m_Pos.z;
+			const float dx = m_Actor.m_Pos.x - m_Camera.m_Pos.x;
+			const float dy = m_Actor.m_Pos.y - m_Camera.m_Pos.y;
+			const float dz = (m_Actor.m_Pos.z + 1.15f) - m_Camera.m_Pos.z;
 			const float len = std::sqrt(dx * dx + dy * dy + dz * dz);
 			if (len > 0.001f)
 			{
-				yaw   = std::atan2(-dx, dy) * 180.f / kPi;
-				pitch = std::asin(dz / len) * 180.f / kPi;
+				fx = dx / len;
+				fy = dy / len;
+				fz = dz / len;
+				return;
 			}
 		}
 
-		const float yawR   = DegToRad(yaw);
-		const float pitchR = DegToRad(pitch);
+		const float yawR   = DegToRad(m_Camera.m_YawDeg);
+		const float pitchR = DegToRad(m_Camera.m_PitchDeg);
 		const float cp     = std::cos(pitchR);
+		fx                 = -std::sin(yawR) * cp;
+		fy                 = std::cos(yawR) * cp;
+		fz                 = std::sin(pitchR);
+	}
 
-		const float fwd_x = -std::sin(yawR) * cp;
-		const float fwd_y = std::cos(yawR) * cp;
-		const float fwd_z = std::sin(pitchR);
-		const float right_x = std::cos(yawR);
-		const float right_y = std::sin(yawR);
-		const float up_x = right_y * fwd_z;
-		const float up_y = -right_x * fwd_z;
-		const float up_z = right_x * fwd_y - right_y * fwd_x;
+	void MockEspWorld::ComputeMatrices(float outView[16], float outProj[16]) const
+	{
+		float fx, fy, fz;
+		ComputeForward(fx, fy, fz);
 
-		const float rx = world.x - m_Camera.m_Pos.x;
-		const float ry = world.y - m_Camera.m_Pos.y;
-		const float rz = world.z - m_Camera.m_Pos.z;
+		// left-handed lookAt, row-major (mul(v, M) convention)
+		float rx = -fy, ry = fx, rz = 0.f; // cross((0,0,1), f)
+		float rl = std::sqrt(rx * rx + ry * ry);
+		if (rl < 0.0001f)
+		{
+			rx = 1.f;
+			ry = 0.f;
+			rl = 1.f;
+		}
+		rx /= rl;
+		ry /= rl;
+		const float ux = fy * rz - fz * ry;
+		const float uy = fz * rx - fx * rz;
+		const float uz = fx * ry - fy * rx;
 
-		const float cx = rx * right_x + ry * right_y;
-		const float cy = rx * up_x + ry * up_y + rz * up_z;
-		const float cz = rx * fwd_x + ry * fwd_y + rz * fwd_z;
+		const float ex = m_Camera.m_Pos.x, ey = m_Camera.m_Pos.y, ez = m_Camera.m_Pos.z;
+		outView[0] = rx;
+		outView[1] = ux;
+		outView[2] = fx;
+		outView[3] = 0.f;
+		outView[4] = ry;
+		outView[5] = uy;
+		outView[6] = fy;
+		outView[7] = 0.f;
+		outView[8] = rz;
+		outView[9] = uz;
+		outView[10] = fz;
+		outView[11] = 0.f;
+		outView[12] = -(rx * ex + ry * ey + rz * ez);
+		outView[13] = -(ux * ex + uy * ey + uz * ez);
+		outView[14] = -(fx * ex + fy * ey + fz * ez);
+		outView[15] = 1.f;
 
-		if (cz <= 0.1f)
-			return ImVec2(0, 0);
-
-		const float tan_half = std::tan(DegToRad(m_Camera.m_Fov) * 0.5f);
-		const float aspect   = (float)m_Camera.m_Width / (float)m_Camera.m_Height;
-
-		return ImVec2(
-		    (0.5f + 0.5f * cx / (cz * tan_half * aspect)) * (float)m_Camera.m_Width,
-		    (0.5f - 0.5f * cy / (cz * tan_half)) * (float)m_Camera.m_Height);
+		const float tanHalf = std::tan(DegToRad(m_Camera.m_Fov) * 0.5f);
+		const float aspect  = (float)m_Camera.m_Width / (float)m_Camera.m_Height;
+		const float zn = 0.1f, zf = 1000.f;
+		const float xs = 1.f / (tanHalf * aspect);
+		const float ys = 1.f / tanHalf;
+		outProj[0] = xs;
+		outProj[1] = 0.f;
+		outProj[2] = 0.f;
+		outProj[3] = 0.f;
+		outProj[4] = 0.f;
+		outProj[5] = ys;
+		outProj[6] = 0.f;
+		outProj[7] = 0.f;
+		outProj[8] = 0.f;
+		outProj[9] = 0.f;
+		outProj[10] = zf / (zf - zn);
+		outProj[11] = 1.f;
+		outProj[12] = 0.f;
+		outProj[13] = 0.f;
+		outProj[14] = -zn * zf / (zf - zn);
+		outProj[15] = 0.f;
 	}
 
 	void MockEspWorld::Update(float dt)

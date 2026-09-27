@@ -30,6 +30,7 @@ namespace YimMenu
 		virtual float GetDistance() const   = 0; // precomputed distance to self
 		virtual int GetHealth() const       = 0;
 		virtual int GetMaxHealth() const    = 0;
+		virtual bool IsVisible() const      = 0; // line-of-sight state (occluded targets render dimmed)
 
 		virtual rage::fvector3 GetBone(int boneId) const = 0;
 	};
@@ -46,5 +47,6 @@ namespace YimMenu
 		virtual void ForEachPlayer(const std::function<void(IEspActor&)>& callback) = 0;
 		virtual void ForEachPed(const std::function<void(IEspActor&)>& callback)    = 0;
 		virtual ImVec2 Project(const rage::fvector3& world) const                   = 0;
+		virtual ImVec2 GetScreenSize() const                                        = 0;
 	};
 }

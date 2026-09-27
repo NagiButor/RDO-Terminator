@@ -1,5 +1,4 @@
 #include "UIManager.hpp"
-#include "game/frontend/Menu.hpp" // Include the Menu header for font access
 
 namespace YimMenu
 {
@@ -18,9 +17,11 @@ namespace YimMenu
 
     void UIManager::DrawImpl()
     {
-        auto pos = ImGui::GetCursorPos();
-
-        if (ImGui::BeginChild("##submenus", ImVec2(80, ImGui::GetContentRegionAvail().y - 20), true))
+        // Left column: submenu selector. Height fills the remaining content
+        // region; the right side flows naturally next to it, so nothing can
+        // overlap regardless of fonts, DPI or window size.
+        constexpr float kSubmenuColumnWidth = 80.f;
+        if (ImGui::BeginChild("##submenus", ImVec2(kSubmenuColumnWidth, 0), true))
         {
             for (auto& submenu : m_Submenus)
             {
@@ -32,24 +33,12 @@ namespace YimMenu
         }
         ImGui::EndChild();
 
-        // Adjustable font for "RDO Terminator" & "by Mi5hlen"
-        if (Menu::Font::g_OverlayFont) ImGui::PushFont(Menu::Font::g_OverlayFont);
-        ImGui::TextColored(ImVec4(1.0f, 0.12f, 0.12f, 1.0f), "RDO Terminator"); // Terminator Red (R, G, B, A)
         ImGui::SameLine();
-        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "by Mi5hlen"); // Electric Yellow (R, G, B, A)
-        if (Menu::Font::g_OverlayFont) ImGui::PopFont();
 
-        pos.y -= 20; // Reduced upward offset from 20 to 20 (no change, already reduced)
-        ImGui::SetCursorPos(ImVec2(pos.x + 125 - 45, pos.y)); // Shifted X for "minisubmenus" LEFT by 45 pixels (increased from 35) - FURTHER LEFT SHIFT
+        ImGui::BeginGroup(); // right side: categories row + options
+        if (m_ActiveSubmenu)
+            m_ActiveSubmenu->DrawCategorySelectors();
 
-        if (ImGui::BeginChild("##minisubmenus", ImVec2(0, 45), true, ImGuiWindowFlags_NoScrollbar))
-        {
-            if (m_ActiveSubmenu)
-                m_ActiveSubmenu->DrawCategorySelectors();
-        }
-        ImGui::EndChild();
-
-        ImGui::SetCursorPos(ImVec2(pos.x + 130 - 45, pos.y + 45 + 4)); // Shifted X for "options" LEFT by 45 pixels (increased from 35)
         if (ImGui::BeginChild("##options", ImVec2(0, 0), true))
         {
             if (m_OptionsFont)
@@ -62,6 +51,7 @@ namespace YimMenu
                 ImGui::PopFont();
         }
         ImGui::EndChild();
+        ImGui::EndGroup();
     }
 
     std::shared_ptr<Submenu> UIManager::GetActiveSubmenuImpl()

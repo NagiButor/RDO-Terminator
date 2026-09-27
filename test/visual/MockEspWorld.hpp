@@ -27,6 +27,7 @@ namespace YimMenu
 		int m_MaxHealth = 200;
 		bool m_Dead     = false;
 		bool m_Selected = false;
+		bool m_Occluded = false; // simulates "behind a wall" for the visibility check
 		bool m_ShowAsPlayer = true;
 		bool m_Walking      = false;
 		float m_WalkPhase   = 0.f;
@@ -73,6 +74,10 @@ namespace YimMenu
 		{
 			return m_MaxHealth;
 		}
+		bool IsVisible() const override
+		{
+			return !m_Occluded;
+		}
 		rage::fvector3 GetBone(int boneId) const override;
 
 		void Respawn();
@@ -96,6 +101,15 @@ namespace YimMenu
 		void ForEachPlayer(const std::function<void(IEspActor&)>& callback) override;
 		void ForEachPed(const std::function<void(IEspActor&)>& callback) override;
 		ImVec2 Project(const rage::fvector3& world) const override;
+		ImVec2 GetScreenSize() const override
+		{
+			return ImVec2((float)m_Camera.m_Width, (float)m_Camera.m_Height);
+		}
+
+		// Row-major view/projection shared by Project() and the test mesh pass,
+		// so the rendered dummy lines up exactly with the ESP overlay.
+		void ComputeForward(float& fx, float& fy, float& fz) const;
+		void ComputeMatrices(float outView[16], float outProj[16]) const;
 
 		void Update(float dt);
 		ImVec2 ProjectHead() const;

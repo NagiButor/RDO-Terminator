@@ -417,6 +417,9 @@ namespace YimMenu::Submenus
         playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<BoolCommandItem>("espskeletonplayers"_J, "Player Skeleton")));
         playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<ColorCommandItem>("skeletoncolorplayers"_J)));
 
+        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<ListCommandItem>("espboxplayers"_J, "Box Style")));
+        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<BoolCommandItem>("espsnaplineplayers"_J, "Snapline")));
+
         pedEsp->AddItem(std::make_shared<BoolCommandItem>("espdrawpeds"_J));
         pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<BoolCommandItem>("espdrawdeadpeds"_J)));
 
@@ -435,6 +438,9 @@ namespace YimMenu::Submenus
         pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<BoolCommandItem>("espskeletonhorse"_J, "Horse Skeleton")));
         pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<ColorCommandItem>("skeletoncolorhorse"_J)));
 
+        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<ListCommandItem>("espboxpeds"_J, "Box Style")));
+        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<BoolCommandItem>("espsnaplinepeds"_J, "Snapline")));
+
         overlay->AddItem(std::make_shared<BoolCommandItem>("overlay"_J));
         overlay->AddItem(std::make_shared<ConditionalItem>("overlay"_J, std::make_shared<BoolCommandItem>("overlayfps"_J)));
 
@@ -447,6 +453,7 @@ namespace YimMenu::Submenus
         menuTheme->AddItem(std::make_shared<ImGuiItem>(DrawColorSettings));
 
         misc->AddItem(std::make_shared<BoolCommandItem>("togglemenukey"_J));
+        misc->AddItem(std::make_shared<BoolCommandItem>("espvisibilitycheck"_J, "Visibility Check"));
         misc->AddItem(std::make_shared<ImGuiItem>([] {
             if (ImGui::Button("Terminate (unload cheat)"))
             {

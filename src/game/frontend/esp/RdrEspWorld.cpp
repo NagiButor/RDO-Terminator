@@ -18,6 +18,8 @@
 
 #include <format>
 #include <string>
+#include <chrono>
+#include <unordered_map>
 
 namespace YimMenu
 {
@@ -27,6 +29,33 @@ namespace YimMenu
 		extern BoolCommand _ESPModelPeds;
 		extern BoolCommand _ESPNetworkInfoPeds;
 		extern BoolCommand _ESPScriptInfoPeds;
+		extern BoolCommand _ESPVisibilityCheck;
+	}
+
+	// Line-of-sight checks are native calls: throttle per handle so a crowd
+	// of actors doesn't stall the frame. Stale entries are dropped in bulk.
+	static bool CheckVisibleThrottled(int selfHandle, int targetHandle)
+	{
+		using Clock = std::chrono::steady_clock;
+		struct Entry
+		{
+			bool visible = true;
+			Clock::time_point at{};
+		};
+		static std::unordered_map<int, Entry> cache;
+
+		if (!Features::_ESPVisibilityCheck.GetState())
+			return true;
+
+		const auto now = Clock::now();
+		if (auto it = cache.find(targetHandle); it != cache.end() && now - it->second.at < std::chrono::milliseconds(300))
+			return it->second.visible;
+
+		const bool visible = ENTITY::HAS_ENTITY_CLEAR_LOS_TO_ENTITY(selfHandle, targetHandle, 17) != 0;
+		cache[targetHandle] = {visible, now};
+		if (cache.size() > 512)
+			cache.clear();
+		return visible;
 	}
 	// Projects with the camera that actually renders the picture (spectator/freecam/script cams).
 	// Returns x == 0 when the point can't be projected (no cam / behind it).
@@ -80,9 +109,10 @@ namespace YimMenu
 	class RdrPlayerActor : public IEspActor
 	{
 	public:
-		explicit RdrPlayerActor(Player player) :
+		explicit RdrPlayerActor(Player player, bool visible) :
 		    m_Player(player),
-		    m_Ped(player.GetPed())
+		    m_Ped(player.GetPed()),
+		    m_Visible(visible)
 		{
 		}
 
@@ -131,6 +161,10 @@ namespace YimMenu
 		{
 			return ENTITY::GET_ENTITY_MAX_HEALTH(m_Ped.GetHandle(), true);
 		}
+		bool IsVisible() const override
+		{
+			return m_Visible;
+		}
 		rage::fvector3 GetBone(int boneId) const override
 		{
 			return m_Ped.GetBonePosition(boneId);
@@ -139,13 +173,15 @@ namespace YimMenu
 	private:
 		mutable Player m_Player;
 		mutable Ped m_Ped;
+		bool m_Visible = true;
 	};
 
 	class RdrPedActor : public IEspActor
 	{
 	public:
-		explicit RdrPedActor(Ped ped) :
-		    m_Ped(ped)
+		explicit RdrPedActor(Ped ped, bool visible) :
+		    m_Ped(ped),
+		    m_Visible(visible)
 		{
 		}
 
@@ -217,6 +253,10 @@ namespace YimMenu
 		{
 			return ENTITY::GET_ENTITY_MAX_HEALTH(m_Ped.GetHandle(), true);
 		}
+		bool IsVisible() const override
+		{
+			return m_Visible;
+		}
 		rage::fvector3 GetBone(int boneId) const override
 		{
 			return m_Ped.GetBonePosition(boneId);
@@ -224,6 +264,7 @@ namespace YimMenu
 
 	private:
 		mutable Ped m_Ped;
+		bool m_Visible = true;
 	};
 
 	class RdrEspWorld : public IEspWorld
@@ -241,9 +282,10 @@ namespace YimMenu
 		}
 		void ForEachPlayer(const std::function<void(IEspActor&)>& callback) override
 		{
+			const int selfHandle = Self::GetPed().GetHandle();
 			for (auto& [id, player] : Players::GetPlayers())
 			{
-				RdrPlayerActor actor(player);
+				RdrPlayerActor actor(player, CheckVisibleThrottled(selfHandle, player.GetPed().GetHandle()));
 				callback(actor);
 			}
 		}
@@ -251,11 +293,12 @@ namespace YimMenu
 		{
 			if (!GetPedPool())
 				return;
+			const int selfHandle = Self::GetPed().GetHandle();
 			for (Ped ped : Pools::GetPeds())
 			{
 				if (ped.IsValid() || ped.GetPointer<void*>())
 				{
-					RdrPedActor actor(ped);
+					RdrPedActor actor(ped, CheckVisibleThrottled(selfHandle, ped.GetHandle()));
 					callback(actor);
 				}
 			}
@@ -273,6 +316,10 @@ namespace YimMenu
 			Pointers.WorldToScreen(boneCoords, &screen_x, &screen_y);
 
 			return ImVec2(screen_x * (*Pointers.ScreenResX), screen_y * (*Pointers.ScreenResY));
+		}
+		ImVec2 GetScreenSize() const override
+		{
+			return ImVec2((float)(*Pointers.ScreenResX), (float)(*Pointers.ScreenResY));
 		}
 	};
 

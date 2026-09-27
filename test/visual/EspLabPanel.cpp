@@ -1,5 +1,6 @@
 #include "EspLabPanel.hpp"
 #include "MockEspWorld.hpp"
+#include "DummyMesh.hpp"
 
 #include "imgui.h"
 
@@ -7,7 +8,7 @@
 
 namespace YimMenu
 {
-	void DrawEspLabPanel(MockEspWorld& world)
+	void DrawEspLabPanel(MockEspWorld& world, DummyMesh& mesh)
 	{
 		MockActor& actor = world.m_Actor;
 
@@ -36,6 +37,7 @@ namespace YimMenu
 
 		ImGui::Checkbox("Walking", &actor.m_Walking);
 		ImGui::Checkbox("Selected (blue name)", &actor.m_Selected);
+		ImGui::Checkbox("Occluded (behind wall)", &actor.m_Occluded);
 		int mode = actor.m_ShowAsPlayer ? 0 : 1;
 		ImGui::RadioButton("Show as Player", &mode, 0);
 		ImGui::SameLine();
@@ -60,6 +62,29 @@ namespace YimMenu
 		ImGui::Text("HP: %d / %d%s", actor.GetHealth(), actor.GetMaxHealth(), actor.IsDead() ? " (dead)" : "");
 		ImGui::Text("Distance: %dm", (int)actor.GetDistance());
 		ImGui::Text("Head: %.0f, %.0f %s", head.x, head.y, head.x == 0 ? "(culled)" : "");
+
+		ImGui::Separator();
+		ImGui::TextUnformatted("Crash dummy mesh");
+		if (!mesh.IsLoaded())
+		{
+			ImGui::TextDisabled("scene.gltf not loaded");
+		}
+		else
+		{
+			ImGui::SliderFloat("Mesh scale", &mesh.m_Scale, 0.5f, 2.f, "%.2f");
+			ImGui::SliderFloat("Mesh yaw", &mesh.m_YawDeg, -180.f, 180.f, "%.0f deg");
+			ImGui::SliderFloat("Mesh Z", &mesh.m_ZOffset, -0.5f, 0.5f, "%.2f");
+			ImGui::Checkbox("Wireframe", &mesh.m_Wireframe);
+			ImGui::SameLine();
+			ImGui::Checkbox("Textured", &mesh.m_Textured);
+		}
+		ImGui::TextDisabled("Mesh: Crash Dummy by robomax (CC-BY-NC-4.0)");
+
+		ImGui::Separator();
+		static bool showMetrics = false;
+		ImGui::Checkbox("ImGui Metrics (layout debug)", &showMetrics);
+		if (showMetrics)
+			ImGui::ShowMetricsWindow(&showMetrics);
 
 		ImGui::End();
 	}

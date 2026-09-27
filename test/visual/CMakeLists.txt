@@ -10,6 +10,7 @@ set(VISUAL_TEST_SOURCES
     "${VISUAL_TEST_DIR}/main.cpp"
     "${VISUAL_TEST_DIR}/MockEspWorld.cpp"
     "${VISUAL_TEST_DIR}/EspLabPanel.cpp"
+    "${VISUAL_TEST_DIR}/DummyMesh.cpp"
     "${VISUAL_TEST_DIR}/stubs/FiberPoolStub.cpp"
 
     # shared globals (g_Running etc. declared by common.hpp)
@@ -86,6 +87,8 @@ target_link_libraries(MenuVisualTest PRIVATE
     AsyncLogger
     d3d11.lib
     dxgi.lib
+    d3dcompiler.lib
+    windowscodecs.lib
 )
 
 add_compile_definitions("_CRT_SECURE_NO_WARNINGS" "NOMINMAX" "WIN32_LEAN_AND_MEAN")

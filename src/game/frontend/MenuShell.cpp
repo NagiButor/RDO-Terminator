@@ -59,6 +59,7 @@ namespace YimMenu::Menu
 		    const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 22.0f, &FontCfg);
 		Menu::Font::g_OverlayFont = IO.Fonts->AddFontFromMemoryTTF(
 		    const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 16.0f, &FontCfg);
+		Menu::Font::g_EspFont = IO.Fonts->AddFontDefault();
 
 		UIManager::SetOptionsFont(Menu::Font::g_OptionsFont);
 	}
