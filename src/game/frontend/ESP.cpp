@@ -1,18 +1,12 @@
-#include "Esp.hpp"
-#include "common.hpp"
+#include "ESP.hpp"
+#include "game/frontend/esp/EspWorld.hpp"
 #include "core/commands/BoolCommand.hpp"
 #include "core/commands/ColorCommand.hpp"
-#include "game/backend/Players.hpp"
-#include "game/backend/Self.hpp"
-#include "game/features/Features.hpp"
-#include "game/pointers/Pointers.hpp"
-#include "game/rdr/Pools.hpp"
-#include "game/rdr/Scripts.hpp"
-#include "util/Math.hpp"
-#include "game/rdr/data/PedModels.hpp"
-#include "game/rdr/invoker/Invoker.hpp"
+#include "imgui.h"
 
+#include <algorithm>
 #include <cmath>
+#include <string>
 
 namespace
 {
@@ -106,54 +100,6 @@ namespace YimMenu::Features
 
 namespace YimMenu
 {
-    // Projects with the camera that actually renders the picture (spectator/freecam/script cams).
-    // Returns x == 0 when the point can't be projected (no cam / behind it).
-    static ImVec2 ProjectFromRenderCam(const rage::fvector3& bone)
-    {
-        const Cam cam = CAM::GET_RENDERING_CAM();
-        if (!cam || !CAM::DOES_CAM_EXIST(cam))
-            return ImVec2(0, 0);
-
-        const Vector3 campos = CAM::GET_CAM_COORD(cam);
-        const Vector3 camrot = CAM::GET_CAM_ROT(cam, 2);
-        const float fov      = CAM::GET_CAM_FOV(cam);
-        if (fov <= 1.f)
-            return ImVec2(0, 0);
-
-        const float yaw   = Math::DegToRad(camrot.z);
-        const float pitch = Math::DegToRad(camrot.x);
-        const float cp    = std::cos(pitch);
-
-        // camera basis (same convention as Math::RotationToDirection)
-        const float fwd_x = -std::sin(yaw) * cp;
-        const float fwd_y = std::cos(yaw) * cp;
-        const float fwd_z = std::sin(pitch);
-        const float right_x = std::cos(yaw);
-        const float right_y = std::sin(yaw);
-        const float right_z = 0.f;
-        // up = right x fwd
-        const float up_x = right_y * fwd_z - right_z * fwd_y;
-        const float up_y = right_z * fwd_x - right_x * fwd_z;
-        const float up_z = right_x * fwd_y - right_y * fwd_x;
-
-        const float rx = bone.x - campos.x;
-        const float ry = bone.y - campos.y;
-        const float rz = bone.z - campos.z;
-
-        const float cx = rx * right_x + ry * right_y + rz * right_z;
-        const float cy = rx * up_x + ry * up_y + rz * up_z;
-        const float cz = rx * fwd_x + ry * fwd_y + rz * fwd_z;
-
-        if (cz <= 0.1f)
-            return ImVec2(0, 0); // behind the camera
-
-        const float tan_half = std::tan(Math::DegToRad(fov) * 0.5f);
-        const float aspect   = (float)(*Pointers.ScreenResX) / (float)(*Pointers.ScreenResY);
-
-        return ImVec2(
-            (0.5f + 0.5f * cx / (cz * tan_half * aspect)) * (float)(*Pointers.ScreenResX),
-            (0.5f - 0.5f * cy / (cz * tan_half)) * (float)(*Pointers.ScreenResY));
-    }
     static ImVec4 Green  = ImVec4(0.29f, 0.69f, 0.34f, 1.f);
     static ImVec4 Orange = ImVec4(0.69f, 0.49f, 0.29f, 1.f);
     static ImVec4 Red    = ImVec4(0.69f, 0.29f, 0.29f, 1.f);
@@ -174,36 +120,21 @@ namespace YimMenu
         drawList->AddText(position, color, text.c_str());
     }
 
-    ImVec2 ESP::boneToScreen(rage::fvector3 bone)
+    void ESP::DrawSkeleton(IEspActor& actor, const IEspWorld& world, ImDrawList* drawList, ImColor color)
     {
-        // In spectator mode the picture comes from the render camera at the target,
-        // but the engine WorldToScreen still projects from our own gameplay camera.
-        if (g_Spectating)
-            return ProjectFromRenderCam(bone);
-
-        float screen_x, screen_y;
-        float boneCoords[3] = { bone.x, bone.y, bone.z };
-
-        Pointers.WorldToScreen(boneCoords, &screen_x, &screen_y);
-
-        return ImVec2(screen_x * (*Pointers.ScreenResX), screen_y * (*Pointers.ScreenResY));
-    }
-
-    void ESP::DrawSkeleton(Ped ped, ImDrawList* drawList, ImColor color)
-    {
-        auto headPos         = boneToScreen(ped.GetBonePosition(headBone));
-        auto neckPos         = boneToScreen(ped.GetBonePosition(neckBone));
-        auto torsoPos        = boneToScreen(ped.GetBonePosition(torsoBone));
-        auto leftShoulderPos = boneToScreen(ped.GetBonePosition(leftShoulderBone));
-        auto rightShoulderPos= boneToScreen(ped.GetBonePosition(rightShoulderBone));
-        auto leftElbowPos    = boneToScreen(ped.GetBonePosition(leftElbowBone));
-        auto rightElbowPos   = boneToScreen(ped.GetBonePosition(rightElbowBone));
-        auto leftHandPos     = boneToScreen(ped.GetBonePosition(leftHandBone));
-        auto rightHandPos    = boneToScreen(ped.GetBonePosition(rightHandBone));
-        auto leftKneePos     = boneToScreen(ped.GetBonePosition(leftKneeBone));
-        auto rightKneePos    = boneToScreen(ped.GetBonePosition(rightKneeBone));
-        auto leftFootPos     = boneToScreen(ped.GetBonePosition(leftFootBone));
-        auto rightFootPos    = boneToScreen(ped.GetBonePosition(rightFootBone));
+        auto headPos          = world.Project(actor.GetBone(headBone));
+        auto neckPos          = world.Project(actor.GetBone(neckBone));
+        auto torsoPos         = world.Project(actor.GetBone(torsoBone));
+        auto leftShoulderPos  = world.Project(actor.GetBone(leftShoulderBone));
+        auto rightShoulderPos = world.Project(actor.GetBone(rightShoulderBone));
+        auto leftElbowPos     = world.Project(actor.GetBone(leftElbowBone));
+        auto rightElbowPos    = world.Project(actor.GetBone(rightElbowBone));
+        auto leftHandPos      = world.Project(actor.GetBone(leftHandBone));
+        auto rightHandPos     = world.Project(actor.GetBone(rightHandBone));
+        auto leftKneePos      = world.Project(actor.GetBone(leftKneeBone));
+        auto rightKneePos     = world.Project(actor.GetBone(rightKneeBone));
+        auto leftFootPos      = world.Project(actor.GetBone(leftFootBone));
+        auto rightFootPos     = world.Project(actor.GetBone(rightFootBone));
 
         drawList->AddLine(headPos, neckPos, color, 1.5f);
         drawList->AddLine(neckPos, leftShoulderPos, color, 1.5f);
@@ -219,24 +150,24 @@ namespace YimMenu
         drawList->AddLine(rightKneePos, rightFootPos, color, 1.5f);
     }
 
-    void ESP::DrawHorseSkeleton(Ped horse, ImDrawList* drawList, ImColor color)
+    void ESP::DrawHorseSkeleton(IEspActor& horse, const IEspWorld& world, ImDrawList* drawList, ImColor color)
     {
         // Head and neck
-        auto headPos    = boneToScreen(horse.GetBonePosition(horseHeadBone));
-        auto neckPos0   = boneToScreen(horse.GetBonePosition(horseNeckBone0));
-        auto torsoPos   = boneToScreen(horse.GetBonePosition(horseTorsoBone));
-        auto pelvisPos  = boneToScreen(horse.GetBonePosition(horsePelvisBone));
+        auto headPos   = world.Project(horse.GetBone(horseHeadBone));
+        auto neckPos0  = world.Project(horse.GetBone(horseNeckBone0));
+        auto torsoPos  = world.Project(horse.GetBone(horseTorsoBone));
+        auto pelvisPos = world.Project(horse.GetBone(horsePelvisBone));
 
         drawList->AddLine(headPos, neckPos0, color, 1.5f);
         drawList->AddLine(neckPos0, torsoPos, color, 1.5f);
         drawList->AddLine(torsoPos, pelvisPos, color, 1.5f);
 
         // Front left leg
-        auto frontLeftUpperArmPos = boneToScreen(horse.GetBonePosition(horseFrontLeftUpperArmBone));
-        auto frontLeftForearmPos  = boneToScreen(horse.GetBonePosition(horseFrontLeftForearmBone));
-        auto frontLeftHandPos     = boneToScreen(horse.GetBonePosition(horseFrontLeftHandBone));
-        auto frontLeftFinger0Pos  = boneToScreen(horse.GetBonePosition(horseFrontLeftFingerBone0));
-        auto frontLeftFinger1Pos  = boneToScreen(horse.GetBonePosition(horseFrontLeftFingerBone1));
+        auto frontLeftUpperArmPos = world.Project(horse.GetBone(horseFrontLeftUpperArmBone));
+        auto frontLeftForearmPos  = world.Project(horse.GetBone(horseFrontLeftForearmBone));
+        auto frontLeftHandPos     = world.Project(horse.GetBone(horseFrontLeftHandBone));
+        auto frontLeftFinger0Pos  = world.Project(horse.GetBone(horseFrontLeftFingerBone0));
+        auto frontLeftFinger1Pos  = world.Project(horse.GetBone(horseFrontLeftFingerBone1));
 
         drawList->AddLine(neckPos0, frontLeftUpperArmPos, color, 1.5f);
         drawList->AddLine(frontLeftUpperArmPos, frontLeftForearmPos, color, 1.5f);
@@ -245,11 +176,11 @@ namespace YimMenu
         drawList->AddLine(frontLeftFinger0Pos, frontLeftFinger1Pos, color, 1.5f);
 
         // Front right leg
-        auto frontRightUpperArmPos = boneToScreen(horse.GetBonePosition(horseFrontRightUpperArmBone));
-        auto frontRightForearmPos  = boneToScreen(horse.GetBonePosition(horseFrontRightForearmBone));
-        auto frontRightHandPos     = boneToScreen(horse.GetBonePosition(horseFrontRightHandBone));
-        auto frontRightFinger0Pos  = boneToScreen(horse.GetBonePosition(horseFrontRightFingerBone0));
-        auto frontRightFinger1Pos  = boneToScreen(horse.GetBonePosition(horseFrontRightFingerBone1));
+        auto frontRightUpperArmPos = world.Project(horse.GetBone(horseFrontRightUpperArmBone));
+        auto frontRightForearmPos  = world.Project(horse.GetBone(horseFrontRightForearmBone));
+        auto frontRightHandPos     = world.Project(horse.GetBone(horseFrontRightHandBone));
+        auto frontRightFinger0Pos  = world.Project(horse.GetBone(horseFrontRightFingerBone0));
+        auto frontRightFinger1Pos  = world.Project(horse.GetBone(horseFrontRightFingerBone1));
 
         drawList->AddLine(neckPos0, frontRightUpperArmPos, color, 1.5f);
         drawList->AddLine(frontRightUpperArmPos, frontRightForearmPos, color, 1.5f);
@@ -258,11 +189,11 @@ namespace YimMenu
         drawList->AddLine(frontRightFinger0Pos, frontRightFinger1Pos, color, 1.5f);
 
         // Rear left leg
-        auto rearLeftThighPos = boneToScreen(horse.GetBonePosition(horseRearLeftThighBone));
-        auto rearLeftCalfPos  = boneToScreen(horse.GetBonePosition(horseRearLeftCalfBone));
-        auto rearLeftFootPos  = boneToScreen(horse.GetBonePosition(horseRearLeftFootBone));
-        auto rearLeftToe0Pos  = boneToScreen(horse.GetBonePosition(horseRearLeftToeBone0));
-        auto rearLeftToe1Pos  = boneToScreen(horse.GetBonePosition(horseRearLeftToeBone1));
+        auto rearLeftThighPos = world.Project(horse.GetBone(horseRearLeftThighBone));
+        auto rearLeftCalfPos  = world.Project(horse.GetBone(horseRearLeftCalfBone));
+        auto rearLeftFootPos  = world.Project(horse.GetBone(horseRearLeftFootBone));
+        auto rearLeftToe0Pos  = world.Project(horse.GetBone(horseRearLeftToeBone0));
+        auto rearLeftToe1Pos  = world.Project(horse.GetBone(horseRearLeftToeBone1));
 
         drawList->AddLine(pelvisPos, rearLeftThighPos, color, 1.5f);
         drawList->AddLine(rearLeftThighPos, rearLeftCalfPos, color, 1.5f);
@@ -271,11 +202,11 @@ namespace YimMenu
         drawList->AddLine(rearLeftToe0Pos, rearLeftToe1Pos, color, 1.5f);
 
         // Rear right leg
-        auto rearRightThighPos = boneToScreen(horse.GetBonePosition(horseRearRightThighBone));
-        auto rearRightCalfPos  = boneToScreen(horse.GetBonePosition(horseRearRightCalfBone));
-        auto rearRightFootPos  = boneToScreen(horse.GetBonePosition(horseRearRightFootBone));
-        auto rearRightToe0Pos  = boneToScreen(horse.GetBonePosition(horseRearRightToeBone0));
-        auto rearRightToe1Pos  = boneToScreen(horse.GetBonePosition(horseRearRightToeBone1));
+        auto rearRightThighPos = world.Project(horse.GetBone(horseRearRightThighBone));
+        auto rearRightCalfPos  = world.Project(horse.GetBone(horseRearRightCalfBone));
+        auto rearRightFootPos  = world.Project(horse.GetBone(horseRearRightFootBone));
+        auto rearRightToe0Pos  = world.Project(horse.GetBone(horseRearRightToeBone0));
+        auto rearRightToe1Pos  = world.Project(horse.GetBone(horseRearRightToeBone1));
 
         drawList->AddLine(pelvisPos, rearRightThighPos, color, 1.5f);
         drawList->AddLine(rearRightThighPos, rearRightCalfPos, color, 1.5f);
@@ -284,12 +215,12 @@ namespace YimMenu
         drawList->AddLine(rearRightToe0Pos, rearRightToe1Pos, color, 1.5f);
     }
 
-    void ESP::DrawPlayer(Player& plyr, ImDrawList* drawList)
+    void ESP::DrawPlayer(IEspActor& plyr, const IEspWorld& world, ImDrawList* drawList)
     {
-        if (!plyr.IsValid() || !plyr.GetPed().IsValid() || plyr == Self::GetPlayer() || boneToScreen(plyr.GetPed().GetBonePosition(torsoBone)).x == 0 || (plyr.GetPed().IsDead() && !Features::_ESPDrawDeadPlayers.GetState()))
+        if (!plyr.IsValid() || plyr.IsSelf() || world.Project(plyr.GetBone(torsoBone)).x == 0 || (plyr.IsDead() && !Features::_ESPDrawDeadPlayers.GetState()))
             return;
 
-        float distanceToPlayer    = Self::GetPed().GetPosition().GetDistance(plyr.GetPed().GetBonePosition(torsoBone));
+        float distanceToPlayer       = plyr.GetDistance();
         ImColor colorBasedOnDistance = GetColorBasedOnDistance(distanceToPlayer);
 
         const auto originalFontSize = ImGui::GetFont()->Scale;
@@ -299,22 +230,22 @@ namespace YimMenu
 
         if (Features::_ESPName.GetState())
         {
-            auto headPos = boneToScreen(plyr.GetPed().GetBonePosition(headBone));
-            DrawTextInfo(drawList, headPos, plyr.GetName(), plyr == Players::GetSelected() ? Blue : Features::_NameColorPlayers.GetState());
+            auto headPos = world.Project(plyr.GetBone(headBone));
+            DrawTextInfo(drawList, headPos, plyr.GetName(), plyr.IsSelected() ? Blue : Features::_NameColorPlayers.GetState());
         }
 
         if (Features::_ESPDistance.GetState())
         {
-            auto headPos     = boneToScreen(plyr.GetPed().GetBonePosition(headBone));
+            auto headPos          = world.Project(plyr.GetBone(headBone));
             std::string distanceStr = std::to_string(static_cast<int>(distanceToPlayer)) + "m";
             DrawTextInfo(drawList, { headPos.x, headPos.y + 20 }, distanceStr, colorBasedOnDistance);
         }
 
         if (Features::_ESPHealth.GetState())
         {
-            auto headPos  = boneToScreen(plyr.GetPed().GetBonePosition(headBone));
-            const int hp     = plyr.GetPed().GetHealth();
-            const int max_hp = ENTITY::GET_ENTITY_MAX_HEALTH(plyr.GetPed().GetHandle(), true);
+            auto headPos   = world.Project(plyr.GetBone(headBone));
+            const int hp     = plyr.GetHealth();
+            const int max_hp = plyr.GetMaxHealth();
             const float frac = max_hp > 0 ? std::clamp((float)hp / (float)max_hp, 0.f, 1.f) : 0.f;
 
             // HP bar under the distance text
@@ -331,18 +262,18 @@ namespace YimMenu
         currentFont->Scale = originalFontSize;
         ImGui::PopFont();
 
-        if (Features::_ESPSkeleton.GetState() && !plyr.GetPed().IsAnimal() && distanceToPlayer < 250.f)
+        if (Features::_ESPSkeleton.GetState() && !plyr.IsAnimal() && distanceToPlayer < 250.f)
         {
-            DrawSkeleton(plyr.GetPed(), drawList, ImGui::ColorConvertFloat4ToU32(Features::_SkeletonColorPlayers.GetState()));
+            DrawSkeleton(plyr, world, drawList, ImGui::ColorConvertFloat4ToU32(Features::_SkeletonColorPlayers.GetState()));
         }
     }
 
-    void ESP::DrawPeds(Ped ped, ImDrawList* drawList)
+    void ESP::DrawPeds(IEspActor& ped, const IEspWorld& world, ImDrawList* drawList)
     {
-        if (!ped.IsValid() || ped.IsPlayer() || ped == Self::GetPlayer().GetPed() || boneToScreen(ped.GetBonePosition(torsoBone)).x == 0 || (ped.IsDead() && !Features::_ESPDrawDeadPeds.GetState()))
+        if (!ped.IsValid() || ped.IsSelf() || world.Project(ped.GetBone(torsoBone)).x == 0 || (ped.IsDead() && !Features::_ESPDrawDeadPeds.GetState()))
             return;
 
-        float distanceToPed       = Self::GetPed().GetPosition().GetDistance(ped.GetBonePosition(torsoBone));
+        float distanceToPed          = ped.GetDistance();
         ImColor colorBasedOnDistance = GetColorBasedOnDistance(distanceToPed);
 
         const auto originalFontSize = ImGui::GetFont()->Scale;
@@ -350,43 +281,16 @@ namespace YimMenu
         currentFont->Scale *= 1.2;
         ImGui::PushFont(ImGui::GetFont());
 
-        std::string info = "";
-
-        if (Features::_ESPModelPeds.GetState())
-        {
-            if (auto it = Data::g_PedModels.find(ped.GetModel()); it != Data::g_PedModels.end())
-                info += std::format("{} (0x{:08X}) ", it->second, static_cast<joaat_t>(ped.GetModel())); // Show both name and hash
-            else
-                info += std::format("0x{:08X} ", static_cast<joaat_t>(ped.GetModel())); // Show only hash if name not found
-        }
-
-        if (Features::_ESPNetworkInfoPeds.GetState() && ped.IsNetworked())
-        {
-            auto owner = Player(ped.GetOwner());
-            auto id    = ped.GetNetworkObjectId();
-            info += std::format("{} {} ", id, owner.GetName());
-        }
-
-        if (Features::_ESPScriptInfoPeds.GetState())
-        {
-            if (auto script = ENTITY::_GET_ENTITY_SCRIPT(ped.GetHandle(), nullptr))
-            {
-                if (auto name = Scripts::GetScriptName(script))
-                {
-                    info += std::format("{} ", name);
-                }
-            }
-        }
-
+        const std::string info = ped.GetInfo();
         if (!info.empty())
         {
-            auto headPos = boneToScreen(ped.GetBonePosition(headBone));
+            auto headPos = world.Project(ped.GetBone(headBone));
             DrawTextInfo(drawList, headPos, info, ImGui::ColorConvertFloat4ToU32(Features::_HashColorPeds.GetState()));
         }
 
         if (Features::_ESPDistancePeds.GetState())
         {
-            auto headPos     = boneToScreen(ped.GetBonePosition(headBone));
+            auto headPos          = world.Project(ped.GetBone(headBone));
             std::string distanceStr = std::to_string(static_cast<int>(distanceToPed)) + "m";
             DrawTextInfo(drawList, { headPos.x, headPos.y + 20 }, distanceStr, colorBasedOnDistance);
         }
@@ -396,37 +300,34 @@ namespace YimMenu
 
         if (Features::_ESPSkeletonPeds.GetState() && !ped.IsAnimal() && distanceToPed < 250.f)
         {
-            DrawSkeleton(ped, drawList, ImGui::ColorConvertFloat4ToU32(Features::_SkeletonColorPeds.GetState()));
+            DrawSkeleton(ped, world, drawList, ImGui::ColorConvertFloat4ToU32(Features::_SkeletonColorPeds.GetState()));
         }
 
-        if (Features::_ESPSkeletonHorse.GetState() && PED::_IS_THIS_MODEL_A_HORSE(ped.GetModel()) && distanceToPed < 250.f)
+        if (Features::_ESPSkeletonHorse.GetState() && ped.IsHorse() && distanceToPed < 250.f)
         {
-            DrawHorseSkeleton(ped, drawList, ImGui::ColorConvertFloat4ToU32(Features::_SkeletonColorHorse.GetState()));
+            DrawHorseSkeleton(ped, world, drawList, ImGui::ColorConvertFloat4ToU32(Features::_SkeletonColorHorse.GetState()));
         }
     }
 
-    void ESP::Draw()
+    void ESP::Draw(IEspWorld& world)
     {
-        if (!NativeInvoker::AreHandlersCached() || CAM::IS_SCREEN_FADED_OUT())
+        if (!world.IsAvailable())
             return;
 
         if (const auto drawList = ImGui::GetBackgroundDrawList())
         {
             if (Features::_ESPDrawPlayers.GetState())
             {
-                for (auto& [id, player] : Players::GetPlayers())
-                {
-                    DrawPlayer(player, drawList);
-                }
+                world.ForEachPlayer([&](IEspActor& player) {
+                    DrawPlayer(player, world, drawList);
+                });
             }
-            if (Features::_ESPDrawPeds.GetState() && GetPedPool())
+            if (Features::_ESPDrawPeds.GetState())
             {
-                for (Ped ped : Pools::GetPeds())
-                {
-                    if (ped.IsValid() || ped.GetPointer<void*>())
-                        DrawPeds(ped, drawList);
-                }
+                world.ForEachPed([&](IEspActor& ped) {
+                    DrawPeds(ped, world, drawList);
+                });
             }
         }
     }
-} // Mi5hlen
+} // namespace YimMenu

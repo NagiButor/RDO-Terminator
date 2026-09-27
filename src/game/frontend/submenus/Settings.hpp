@@ -2,6 +2,7 @@
 #include "core/frontend/manager/UIManager.hpp"
 #include "core/commands/ColorCommand.hpp"
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <string>
 
 namespace YimMenu::Submenus
@@ -26,6 +27,10 @@ namespace YimMenu::Submenus
 		void LoadSettings();
 		void SaveSettings();
 		void SaveIfWindowChanged(int width, int height, int posX, int posY, bool maximized);
+
+		// test harness override: when set, settings load/save here instead of %appdata%/Mi5hlenMenu
+		static void SetSettingsFileOverride(const std::string& path);
+		static void ClearSettingsFileOverride();
 
 	private:
 		int m_WindowWidth = 800;

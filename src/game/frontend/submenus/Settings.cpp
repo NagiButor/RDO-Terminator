@@ -11,6 +11,7 @@
 #include "MenuPreSets.hpp"
 #include <fstream>
 #include <filesystem>
+#include <optional>
 #include <Windows.h>
 
 namespace YimMenu::Submenus
@@ -28,7 +29,21 @@ namespace YimMenu::Submenus
     void Settings::SetWindowPosY(int y) { m_WindowPosY = y; }
     void Settings::SetWindowMaximized(bool maximized) { m_WindowMaximized = maximized; }
 
+    static std::optional<std::string> g_SettingsFileOverride;
+
+    void Settings::SetSettingsFileOverride(const std::string& path)
+    {
+        g_SettingsFileOverride = path;
+    }
+
+    void Settings::ClearSettingsFileOverride()
+    {
+        g_SettingsFileOverride.reset();
+    }
+
     std::string Settings::GetSettingsFilePath() const {
+        if (g_SettingsFileOverride)
+            return *g_SettingsFileOverride;
         char* appdata = std::getenv("appdata");
         if (!appdata) return "";
         std::filesystem::path path = std::filesystem::path(appdata) / "Mi5hlenMenu" / "settings.json";

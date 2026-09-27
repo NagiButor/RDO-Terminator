@@ -1,12 +1,34 @@
 #pragma once
 #include "game/frontend/GUI.hpp"
-#include "game/frontend/submenus/Settings.hpp" 
+#include "game/frontend/submenus/Settings.hpp"
+
+#include <functional>
+#include <string>
+
+#include "imgui.h"
 
 namespace YimMenu::Menu
 {
+	// bump on every release so users can verify which build is loaded in game
+	inline constexpr const char* kMenuVersion = "2026.09.22";
+
 	extern void Init();
 	extern void SetupStyle();
-	extern void SetupFonts();
+	extern void SetupFonts(const std::string& iniPath = {});
+
+	// Dependencies the menu shell needs from its host (game or visual test).
+	// Keeps MenuShell.cpp free of Renderer/GUI/MapEditor/FiberPool includes.
+	struct ShellContext
+	{
+		bool m_IsOpen = false;
+		ImTextureID m_Logo = 0;
+		std::function<bool()> m_IsGodMode;
+		std::function<void()> m_ToggleGodMode;
+		std::function<void(std::function<void()>)> m_PushTask;
+		YimMenu::Submenus::Settings* m_Settings = nullptr;
+	};
+
+	extern void DrawShell(const ShellContext& ctx);
 
 	namespace Font
 	{

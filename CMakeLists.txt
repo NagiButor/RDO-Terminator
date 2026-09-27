@@ -39,6 +39,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE AsyncLogger imgui minhook nlohmann
 
 add_compile_definitions("_CRT_SECURE_NO_WARNINGS" "NOMINMAX" "WIN32_LEAN_AND_MEAN")
 
+option(MI5HLEN_BUILD_VISUAL_TEST "Build the standalone menu/ESP visual-test harness" ON)
+if (MI5HLEN_BUILD_VISUAL_TEST)
+    add_subdirectory(test/visual)
+endif()
+
 if(MSVC)
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /LTCG /OPT:REF,ICF /GUARD:NO")
     string(REPLACE "/Ob1" "/Ob3" CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
