@@ -35,6 +35,10 @@ namespace YimMenu::Submenus
 		Vector3 lastPedPos{};
 		int stuckTicks     = 0;
 		bool hasFollowTask = false;
+		float formX        = -1.5f; // personal follow offset: the squad fans out
+		float formY        = -1.5f;
+		int mountTicks     = 0; // mount task state: issue once, retry on timeout
+		int vehTicks       = 0;
 	};
 
 	static std::vector<CompanionRecord> s_companions;
@@ -219,14 +223,15 @@ namespace YimMenu::Submenus
 			int squadTarget = FindPlayerVictim(playerHandle, selfId, playerPos, 60.0f);
 			if (squadTarget == 0)
 			{
-				for (const auto& rec : s_companions)
-				{
-					if (!ENTITY::DOES_ENTITY_EXIST(rec.ped) || ENTITY::IS_ENTITY_DEAD(rec.ped))
-						continue;
-					squadTarget = FindAttackerOnPlayer(playerHandle, rec.ped, playerPos, 50.0f);
-					if (squadTarget != 0)
-						break;
-				}
+			for (const auto& rec : s_companions)
+			{
+				if (!ENTITY::DOES_ENTITY_EXIST(rec.ped) || ENTITY::IS_ENTITY_DEAD(rec.ped))
+					continue;
+				squadTarget = FindAttackerOnPlayer(playerHandle, rec.ped, playerPos, 50.0f);
+				if (squadTarget != 0 && !IsCompanionHandle(squadTarget))
+					break;
+				squadTarget = 0;
+			}
 			}
 
 			for (auto it = s_companions.begin(); it != s_companions.end();)
@@ -245,6 +250,9 @@ namespace YimMenu::Submenus
 				const int horseHandle   = it->horse;
 				const bool horseUsable  = ENTITY::DOES_ENTITY_EXIST(horseHandle) && !ENTITY::IS_ENTITY_DEAD(horseHandle);
 				const bool pedOnMount   = PED::IS_PED_ON_MOUNT(pedHandle);
+				const bool pedInVehicle = PED::IS_PED_IN_ANY_VEHICLE(pedHandle, false);
+				const bool playerInVehicle =
+				    !playerOnMount && PED::IS_PED_IN_ANY_VEHICLE(playerHandle, false);
 
 				if (squadTarget != 0)
 				{
@@ -258,25 +266,69 @@ namespace YimMenu::Submenus
 					it->dismountTicks  = 0;
 					it->hasFollowTask  = false;
 					it->stuckTicks     = 0;
+					it->mountTicks     = 0;
+					it->vehTicks       = 0;
 				}
 				else if (playerOnMount && !pedOnMount && horseUsable && !PED::IS_PED_ON_MOUNT(horseHandle))
 				{
-					TASK::TASK_MOUNT_ANIMAL(pedHandle, horseHandle, -1, -1, 1.0f, 1, 0, 0);
+					// issue the mount order once and let it play out: reissuing
+					// every tick restarts the approach, so they never get on
+					if (++it->mountTicks == 1 || it->mountTicks >= 8)
+					{
+						TASK::TASK_MOUNT_ANIMAL(pedHandle, horseHandle, -1, -1, 1.0f, 1, 0, 0);
+						if (it->mountTicks >= 8)
+							it->mountTicks = 1;
+					}
 					it->dismountTicks = 0;
 					it->hasFollowTask = false;
 					it->stuckTicks    = 0;
+					it->vehTicks      = 0;
 				}
 				else if (!playerOnMount && pedOnMount)
 				{
 					it->hasFollowTask = false;
 					it->stuckTicks    = 0;
+					it->mountTicks    = 0;
+					it->vehTicks      = 0;
 					if (++it->dismountTicks >= 2)
 					{
 						TASK::TASK_DISMOUNT_ANIMAL(pedHandle, 0, 0, 0, 0, 0);
 						it->dismountTicks = 0;
 					}
 				}
-				else if (!pedOnMount)
+				else if (playerInVehicle && !pedInVehicle && !pedOnMount)
+				{
+					// ride along in the player's wagon/vehicle, or trail it on foot
+					it->mountTicks    = 0;
+					it->hasFollowTask = false;
+					it->stuckTicks    = 0;
+					const int playerVeh = PED::GET_VEHICLE_PED_IS_USING(playerHandle);
+					if (ENTITY::DOES_ENTITY_EXIST(playerVeh) && VEHICLE::IS_VEHICLE_SEAT_FREE(playerVeh, -2))
+					{
+						TASK::TASK_ENTER_VEHICLE(pedHandle, playerVeh, -1, -2, 1.0f, 1, 0);
+						it->vehTicks = 0;
+					}
+					else
+					{
+						TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(pedHandle, playerHandle, it->formX, it->formY, 0.0f, 3.0f, -1, 2.0f, true, false, false, true, false, false);
+						it->lastFollowTarget = playerPos;
+						it->hasFollowTask    = true;
+					}
+				}
+				else if (!playerInVehicle && pedInVehicle)
+				{
+					it->mountTicks    = 0;
+					it->hasFollowTask = false;
+					it->stuckTicks    = 0;
+					if (++it->vehTicks >= 2)
+					{
+						const int pedVeh = PED::GET_VEHICLE_PED_IS_USING(pedHandle);
+						if (ENTITY::DOES_ENTITY_EXIST(pedVeh))
+							TASK::TASK_LEAVE_VEHICLE(pedHandle, pedVeh, 0, 0);
+						it->vehTicks = 0;
+					}
+				}
+				else if (!pedOnMount && !pedInVehicle)
 				{
 					// reissue follow only when needed: every reissue restarts the
 					// path and makes followers stutter, so keep a standing order
@@ -291,15 +343,15 @@ namespace YimMenu::Submenus
 						else
 							it->stuckTicks = 0;
 
-						if (playerMoved || it->stuckTicks >= 6)
+						if (playerMoved || it->stuckTicks >= 4)
 						{
-							if (it->stuckTicks >= 6)
+							if (it->stuckTicks >= 4)
 							{
 								// wedged on geometry: drop the stale task and start over
 								TASK::CLEAR_PED_TASKS_IMMEDIATELY(pedHandle, false, true);
 								it->stuckTicks = 0;
 							}
-							TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(pedHandle, playerHandle, -1.5f, -1.5f, 0.0f, 3.0f, -1, 2.0f, true, false, false, true, false, false);
+							TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(pedHandle, playerHandle, it->formX, it->formY, 0.0f, 3.0f, -1, 2.0f, true, false, false, true, false, false);
 							it->lastFollowTarget = playerPos;
 							it->hasFollowTask    = true;
 						}
@@ -310,6 +362,8 @@ namespace YimMenu::Submenus
 					}
 					it->lastPedPos    = pedPos;
 					it->dismountTicks = 0;
+					it->mountTicks    = 0;
+					it->vehTicks      = 0;
 				}
 				else
 				{
@@ -317,6 +371,8 @@ namespace YimMenu::Submenus
 					it->dismountTicks = 0;
 					it->hasFollowTask = false;
 					it->stuckTicks    = 0;
+					it->mountTicks    = 0;
+					it->vehTicks      = 0;
 				}
 				++it;
 			}
@@ -428,6 +484,11 @@ namespace YimMenu::Submenus
 
 			ApplyCompanionSettings(companion);
 
+			// never shoot the boss, even on stray hits: enemies are unaffected
+			companion.SetConfigFlag(PedConfigFlag::CanAttackFriendly, false);
+			// keep up with a sprinting player instead of lagging behind
+			PED::SET_PED_MOVE_RATE_OVERRIDE(pedHandle, 1.25f);
+
 			// companions protect the player: hate whoever hunts them
 			Hash ownGroup = PED::GET_PED_RELATIONSHIP_GROUP_HASH(pedHandle);
 			PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, ownGroup, Joaat("REL_CRIMINALS"));
@@ -441,7 +502,7 @@ namespace YimMenu::Submenus
 				MAP::_SET_BLIP_NAME(blip, "Companion");
 			}
 
-			s_companions.push_back({pedHandle, horseHandle, 0});
+			s_companions.push_back({pedHandle, horseHandle, 0, {}, {}, 0, false, std::cos(angle) * 3.0f, std::sin(angle) * 3.0f, 0, 0});
 			++spawned;
 		}
 

@@ -16,10 +16,11 @@ namespace YimMenu::Features
 {
 	// Rules: the blast itself never kills us or the called-on player (NPCs may
 	// die from it), but the fire afterwards burns everyone, us included.
-	static constexpr float kFireRadius    = 25.0f;
-	static constexpr float kFireGridStep  = 3.0f;
-	static constexpr int kRainStrikes     = 12;
-	static constexpr int kRainIntervalMs  = 800;
+	static constexpr float kFireRadius   = 25.0f;
+	static constexpr float kRainStrikes  = 12;
+	static constexpr int kRainIntervalMs = 800;
+
+	static bool s_Raining = false;
 
 	static float GroundZ(float x, float y, float ref_z, float fallback_z)
 	{
@@ -59,8 +60,10 @@ namespace YimMenu::Features
 		++count;
 	}
 
-	// one meteor strike: falling rock, damageless-for-us blast, full-area fire
-	static void FireNovaStrike(rage::fvector3 center, int targetPed, int selfPed, int& outFires, int& outIgnited)
+	// one meteor strike: falling rock, damageless-for-us blast, full-area fire.
+	// The grid step must stay at or below the visual size of a single fire
+	// patch (~2m), otherwise bare gaps remain between the chunks.
+	static void FireNovaStrike(rage::fvector3 center, int targetPed, int selfPed, int& outFires, int& outIgnited, float fireRadius, float gridStep)
 	{
 		const float groundZ = GroundZ(center.x, center.y, center.z + 2.0f, center.z);
 
@@ -111,34 +114,40 @@ namespace YimMenu::Features
 			meteor.Delete();
 
 		// 4. dense ground grid so the whole area burns, no patchy gaps
-		for (float dx = -kFireRadius; dx <= kFireRadius; dx += kFireGridStep)
+		int gridTick = 0;
+		for (float dx = -fireRadius; dx <= fireRadius; dx += gridStep)
 		{
-			for (float dy = -kFireRadius; dy <= kFireRadius; dy += kFireGridStep)
+			for (float dy = -fireRadius; dy <= fireRadius; dy += gridStep)
 			{
-				if (dx * dx + dy * dy > kFireRadius * kFireRadius)
+				if (dx * dx + dy * dy > fireRadius * fireRadius)
 					continue;
 				const float x = center.x + dx;
 				const float y = center.y + dy;
 				const float z = GroundZ(x, y, groundZ + 10.0f, groundZ) + 0.1f;
 				FIRE::START_SCRIPT_FIRE(x, y, z, 25, 0.0f, true, "", 0.0f, 0);
 				++outFires;
+				if (++gridTick >= 48)
+				{
+					gridTick = 0;
+					ScriptMgr::Yield();
+				}
 			}
 		}
 
 		// 5. everything in range catches fire, us and the target included
 		for (auto ped : Pools::GetPeds())
 		{
-			if (center.GetDistance(ped.GetPosition()) <= kFireRadius)
+			if (center.GetDistance(ped.GetPosition()) <= fireRadius)
 				Ignite(ped.GetHandle(), outIgnited);
 		}
 		for (auto veh : Pools::GetVehicles())
 		{
-			if (center.GetDistance(veh.GetPosition()) <= kFireRadius)
+			if (center.GetDistance(veh.GetPosition()) <= fireRadius)
 				Ignite(veh.GetHandle(), outIgnited);
 		}
 		for (auto obj : Pools::GetObjects())
 		{
-			if (center.GetDistance(obj.GetPosition()) <= kFireRadius)
+			if (center.GetDistance(obj.GetPosition()) <= fireRadius)
 				Ignite(obj.GetHandle(), outIgnited);
 		}
 		Ignite(targetPed, outIgnited);
@@ -170,7 +179,7 @@ namespace YimMenu::Features
 			const int selfPed    = PLAYER::PLAYER_PED_ID();
 
 			int fires = 0, ignited = 0;
-			FireNovaStrike(targetPos, targetPed.GetHandle(), selfPed, fires, ignited);
+			FireNovaStrike(targetPos, targetPed.GetHandle(), selfPed, fires, ignited, kFireRadius, 1.75f);
 
 			Notifications::Show("Fire Nova",
 			    std::string("Meteor hit! ") + std::to_string(fires) + " ground fires, " + std::to_string(ignited) + " entities burning.",
@@ -194,6 +203,13 @@ namespace YimMenu::Features
 			const auto targetPos = targetPed.GetPosition();
 			const int selfPed    = PLAYER::PLAYER_PED_ID();
 
+			if (s_Raining)
+			{
+				Notifications::Show("Meteor Rain", "Rain already falling, wait for it to end", NotificationType::Warning);
+				return;
+			}
+			s_Raining = true;
+
 			static std::mt19937 rng{std::random_device{}()};
 			std::uniform_real_distribution<float> angDist(0.0f, 6.2831853f);
 			std::uniform_real_distribution<float> radDist(0.0f, kFireRadius);
@@ -206,10 +222,11 @@ namespace YimMenu::Features
 				auto strike     = targetPos;
 				strike.x += std::cos(ang) * rad;
 				strike.y += std::sin(ang) * rad;
-				FireNovaStrike(strike, targetPed.GetHandle(), selfPed, fires, ignited);
+				FireNovaStrike(strike, targetPed.GetHandle(), selfPed, fires, ignited, 12.0f, 2.5f);
 				if (i + 1 < kRainStrikes)
 					ScriptMgr::Yield(std::chrono::milliseconds(kRainIntervalMs));
 			}
+			s_Raining = false;
 
 			Notifications::Show("Meteor Rain",
 			    std::string("Rain over! ") + std::to_string(fires) + " ground fires, " + std::to_string(ignited) + " entities burning.",

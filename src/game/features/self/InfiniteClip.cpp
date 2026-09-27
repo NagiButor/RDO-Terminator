@@ -10,6 +10,8 @@ namespace YimMenu::Features
 
 		virtual void OnTick() override
 		{
+			if (PLAYER::_IS_PLAYER_IN_SCOPE(Self::GetPlayer().GetId()))
+				return;
 			WEAPON::_SET_PED_INFINITE_AMMO_CLIP(Self::GetPed().GetHandle(), TRUE);
 		}
 

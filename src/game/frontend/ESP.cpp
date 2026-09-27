@@ -373,8 +373,9 @@ namespace YimMenu
             {
                 DrawSideHealthBar(drawList, boxMin, boxMax, frac, distanceToPlayer);
             }
-            else
+            else if (Features::_ESPBoxPlayers.GetState() == 0)
             {
+                // legacy horizontal bar, only when boxes are fully off
                 auto headPos = world.Project(plyr.GetBone(headBone));
                 const float bar_w = 60.f;
                 const ImVec2 bar_min{headPos.x - bar_w / 2.f, headPos.y + 38};
