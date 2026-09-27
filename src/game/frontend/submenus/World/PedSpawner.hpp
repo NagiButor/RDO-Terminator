@@ -1,9 +1,15 @@
 #pragma once
 #include <unordered_map>
 
+namespace YimMenu
+{
+	class Ped;
+}
+
 namespace YimMenu::Submenus
 {
 	void RenderPedSpawnerMenu();
+	void ApplyCompanionSettings(YimMenu::Ped& ped);
 
 	inline std::unordered_map<int, const char*> groupFormations = {
         {0, "Default"}, 

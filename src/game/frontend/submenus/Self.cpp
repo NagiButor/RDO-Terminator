@@ -981,6 +981,10 @@ namespace YimMenu::Submenus
 		horse->AddItem(horseGlobalsGroup);
 		AddCategory(std::move(horse));
 
+		auto companions = std::make_shared<Category>("Companions");
+		companions->AddItem(std::make_shared<ImGuiItem>([] { YimMenu::Submenus::RenderCompanionsCategory(); }));
+		AddCategory(std::move(companions));
+
 		auto vehicle = std::make_shared<Category>("Vehicle");
 		auto vehicleGlobalsGroup = std::make_shared<Group>("Globals");
 		auto vehicleFunGroup = std::make_shared<Group>("Fun");

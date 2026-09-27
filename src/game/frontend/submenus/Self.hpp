@@ -12,6 +12,7 @@ namespace YimMenu::Submenus
 	};
 
 	void RenderAnimationsCategory();
+	void RenderCompanionsCategory();
 
 	void LoadMusicHistory();
 	void SaveMusicHistory();
