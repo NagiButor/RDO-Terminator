@@ -92,6 +92,9 @@ namespace YimMenu::Menu
 			ImGui::SetNextWindowSize(ImVec2((float)width, (float)height), ImGuiCond_Once);
 		}
 
+		// never let the window (or a game minimize/restore cycle) squeeze it
+		// into a slit the user then has to stretch back manually
+		ImGui::SetNextWindowSizeConstraints(ImVec2((float)minW, (float)minH), ImVec2((float)maxW, (float)maxH));
 		const bool window_visible = ImGui::Begin("##Mi5hlenMenu", nullptr,
 		    ImGuiWindowFlags_NoTitleBar |
 		    ImGuiWindowFlags_NoCollapse |
@@ -140,11 +143,14 @@ namespace YimMenu::Menu
 			int curWidth = (int)winSize.x;
 			int curHeight = (int)winSize.y;
 
-			if (firstFrame ||
+			if ((firstFrame ||
 			    curPosX != lastPosX || curPosY != lastPosY ||
 			    curWidth != lastWidth || curHeight != lastHeight ||
 			    maximized != lastMaximized)
+			    && !ImGui::IsWindowCollapsed() && curWidth >= minW && curHeight >= minH)
 			{
+				// skip degenerate geometry (e.g. while the game is minimized)
+				// so reopening the menu doesn't restore a collapsed slit
 				ctx.m_Settings->SaveIfWindowChanged(curWidth, curHeight, curPosX, curPosY, maximized);
 				lastPosX = curPosX;
 				lastPosY = curPosY;

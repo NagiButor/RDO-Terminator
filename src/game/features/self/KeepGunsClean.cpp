@@ -10,6 +10,10 @@ namespace YimMenu::Features
 
 		virtual void OnTick() override
 		{
+			// don't poke the weapon object while scoped: same scope-kicking
+			// risk as forcing the cocked state, dirt can wait a moment
+			if (PLAYER::_IS_PLAYER_IN_SCOPE(Self::GetPlayer().GetId()))
+				return;
 			if (WEAPON::IS_WEAPON_A_GUN(WEAPON::_GET_PED_CURRENT_HELD_WEAPON(Self::GetPed().GetHandle())))
 			{
 				if (auto weaponObj = WEAPON::_GET_PED_WEAPON_OBJECT(Self::GetPed().GetHandle(), true))

@@ -3,6 +3,7 @@
 #include "game/frontend/Menu.hpp"
 #include "core/commands/BoolCommand.hpp"
 #include "core/commands/ColorCommand.hpp"
+#include "core/commands/IntCommand.hpp"
 #include "core/commands/ListCommand.hpp"
 #include "imgui.h"
 
@@ -82,6 +83,7 @@ namespace YimMenu::Features
     BoolCommand _ESPHealth("esphealthplayers", "Show Player Health", "Should the ESP draw player HP bars?");
     BoolCommand _ESPDistance("espdistanceplayers", "Show Player Distance", "Should the ESP draw player distance?");
     BoolCommand _ESPSkeleton("espskeletonplayers", "Show Player Skeleton", "Should the ESP draw player skeletons?");
+    IntCommand _ESPRenderDistancePlayers("esprenddistplayers", "Render Distance", "Max ESP render distance for players (m)", 50, 1000, 500);
     ListCommand _ESPBoxPlayers("espboxplayers", "Box Style", "Bounding box around players", {{0, "Off"}, {1, "Corners"}, {2, "Full"}}, 1);
     BoolCommand _ESPSnaplinePlayers("espsnaplineplayers", "Show Snapline", "Line from the bottom of the screen to the player");
 
@@ -99,6 +101,7 @@ namespace YimMenu::Features
     BoolCommand _ESPDistancePeds("espdistancepeds", "Show Ped Distance", "Should the ESP draw distance?");
     BoolCommand _ESPSkeletonPeds("espskeletonpeds", "Show Ped Skeleton", "Should the ESP draw the skeleton?");
     BoolCommand _ESPSkeletonHorse("espskeletonhorse", "Show Horse Skeleton", "Should the ESP draw horse skeletons?");
+    IntCommand _ESPRenderDistancePeds("esprenddistpeds", "Render Distance", "Max ESP render distance for peds (m)", 50, 1000, 300);
     ListCommand _ESPBoxPeds("espboxpeds", "Box Style", "Bounding box around peds", {{0, "Off"}, {1, "Corners"}, {2, "Full"}}, 1);
     BoolCommand _ESPSnaplinePeds("espsnaplinepeds", "Show Snapline", "Line from the bottom of the screen to the ped");
 
@@ -174,9 +177,13 @@ namespace YimMenu
         if (h < 4.f)
             return false;
 
-        const float w = std::max(10.f, h * 0.45f);
-        outMin        = {head.x - w / 2.f, head.y};
-        outMax        = {head.x + w / 2.f, head.y + h};
+        // far away the box would shrink to a couple of pixels (and the old
+        // floating HP bar fallback would kick in): clamp to a readable minimum
+        const float clampedH = std::max(h, 12.f);
+        const float w        = std::max(10.f, clampedH * 0.45f);
+        const float cy       = head.y + h / 2.f;
+        outMin               = {head.x - w / 2.f, cy - clampedH / 2.f};
+        outMax               = {head.x + w / 2.f, cy + clampedH / 2.f};
         return true;
     }
 
@@ -326,6 +333,8 @@ namespace YimMenu
             return;
 
         const float distanceToPlayer = plyr.GetDistance();
+        if (distanceToPlayer > (float)Features::_ESPRenderDistancePlayers.GetState())
+            return;
         const bool showText          = distanceToPlayer <= kTextFadeDistance;
         float fade                   = std::clamp(1.15f - distanceToPlayer / kBoxFadeDistance, 0.25f, 1.f);
         if (!plyr.IsVisible())
@@ -393,6 +402,8 @@ namespace YimMenu
             return;
 
         const float distanceToPed = ped.GetDistance();
+        if (distanceToPed > (float)Features::_ESPRenderDistancePeds.GetState())
+            return;
         const bool showText       = distanceToPed <= kTextFadeDistance;
         float fade                = std::clamp(1.15f - distanceToPed / kBoxFadeDistance, 0.25f, 1.f);
         if (!ped.IsVisible())

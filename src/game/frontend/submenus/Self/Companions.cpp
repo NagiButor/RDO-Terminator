@@ -10,6 +10,7 @@
 #include "game/frontend/submenus/World/PedSpawner.hpp"
 #include "game/rdr/Natives.hpp"
 #include "game/rdr/Ped.hpp"
+#include "game/rdr/Pools.hpp"
 #include "game/rdr/data/PedModels.hpp"
 #include "core/frontend/Notifications.hpp"
 #include "util/Joaat.hpp"
@@ -27,16 +28,18 @@ namespace YimMenu::Submenus
 {
 	struct CompanionRecord
 	{
-		int ped          = 0;
-		int horse        = 0;
-		int dismountTicks = 0;
+		int ped            = 0;
+		int horse          = 0;
+		int dismountTicks  = 0;
+		Vector3 lastFollowTarget{};
+		Vector3 lastPedPos{};
+		int stuckTicks     = 0;
+		bool hasFollowTask = false;
 	};
 
 	static std::vector<CompanionRecord> s_companions;
 	static std::string s_model = "A_M_M_VALDEPUTYRESIDENT_01";
 	static int s_aliveCount    = 0;
-
-	static constexpr int kCompanionCount = 10;
 
 	static constexpr const char* kHorses[] = {
 	    "A_C_Horse_TennesseeWalker_Chestnut",
@@ -149,6 +152,51 @@ namespace YimMenu::Submenus
 		return attacker;
 	}
 
+	static float DistBetween(Vector3 a, Vector3 b)
+	{
+		return MISC::GET_DISTANCE_BETWEEN_COORDS(a.x, a.y, a.z, b.x, b.y, b.z, true);
+	}
+
+	static bool IsCompanionHandle(int handle)
+	{
+		for (const auto& rec : s_companions)
+			if (rec.ped == handle || rec.horse == handle)
+				return true;
+		return false;
+	}
+
+	// whoever the player is fighting (NPC or another player) becomes the squad's target
+	static int FindPlayerVictim(int playerHandle, int selfId, Vector3 playerPos, float radius)
+	{
+		for (auto ped : Pools::GetPeds())
+		{
+			const int h = ped.GetHandle();
+			if (!ENTITY::DOES_ENTITY_EXIST(h) || ENTITY::IS_ENTITY_DEAD(h))
+				continue;
+			if (h == playerHandle || IsCompanionHandle(h))
+				continue;
+			if (DistBetween(playerPos, ped.GetPosition()) > radius)
+				continue;
+			if (PED::IS_PED_IN_COMBAT(playerHandle, h))
+				return h;
+		}
+
+		for (int i = 0; i < 32; ++i)
+		{
+			if (i == selfId || !NETWORK::NETWORK_IS_PLAYER_ACTIVE(i))
+				continue;
+			const int h = PLAYER::GET_PLAYER_PED(i);
+			if (!ENTITY::DOES_ENTITY_EXIST(h) || ENTITY::IS_ENTITY_DEAD(h) || h == playerHandle)
+				continue;
+			if (DistBetween(playerPos, ENTITY::GET_ENTITY_COORDS(h, true, true)) > radius)
+				continue;
+			if (PED::IS_PED_IN_COMBAT(playerHandle, h))
+				return h;
+		}
+
+		return 0;
+	}
+
 	static void ManageCompanions()
 	{
 		while (!s_companions.empty())
@@ -163,7 +211,23 @@ namespace YimMenu::Submenus
 			const int playerHandle = playerPed.GetHandle();
 			const Vector3 playerPos = playerPed.GetPosition();
 			const bool playerOnMount = PED::IS_PED_ON_MOUNT(playerHandle);
+			const int selfId = Self::GetPlayer().GetId();
 			int alive = 0;
+
+			// squad-wide targets, computed once per tick: the player's victim first,
+			// then whoever is fighting the player
+			int squadTarget = FindPlayerVictim(playerHandle, selfId, playerPos, 60.0f);
+			if (squadTarget == 0)
+			{
+				for (const auto& rec : s_companions)
+				{
+					if (!ENTITY::DOES_ENTITY_EXIST(rec.ped) || ENTITY::IS_ENTITY_DEAD(rec.ped))
+						continue;
+					squadTarget = FindAttackerOnPlayer(playerHandle, rec.ped, playerPos, 50.0f);
+					if (squadTarget != 0)
+						break;
+				}
+			}
 
 			for (auto it = s_companions.begin(); it != s_companions.end();)
 			{
@@ -181,26 +245,31 @@ namespace YimMenu::Submenus
 				const int horseHandle   = it->horse;
 				const bool horseUsable  = ENTITY::DOES_ENTITY_EXIST(horseHandle) && !ENTITY::IS_ENTITY_DEAD(horseHandle);
 				const bool pedOnMount   = PED::IS_PED_ON_MOUNT(pedHandle);
-				const int attacker      = FindAttackerOnPlayer(playerHandle, pedHandle, playerPos, 50.0f);
 
-				if (attacker != 0)
+				if (squadTarget != 0)
 				{
-					Hash attackerGroup = PED::GET_PED_RELATIONSHIP_GROUP_HASH(attacker);
+					Hash attackerGroup = PED::GET_PED_RELATIONSHIP_GROUP_HASH(squadTarget);
 					if (attackerGroup == Joaat("REL_COP"))
 					{
 						Hash ownGroup = PED::GET_PED_RELATIONSHIP_GROUP_HASH(pedHandle);
 						PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, ownGroup, Joaat("REL_COP"));
 					}
-					TASK::TASK_COMBAT_PED(pedHandle, attacker, 0, 16);
-					it->dismountTicks = 0;
+					TASK::TASK_COMBAT_PED(pedHandle, squadTarget, 0, 16);
+					it->dismountTicks  = 0;
+					it->hasFollowTask  = false;
+					it->stuckTicks     = 0;
 				}
 				else if (playerOnMount && !pedOnMount && horseUsable && !PED::IS_PED_ON_MOUNT(horseHandle))
 				{
 					TASK::TASK_MOUNT_ANIMAL(pedHandle, horseHandle, -1, -1, 1.0f, 1, 0, 0);
 					it->dismountTicks = 0;
+					it->hasFollowTask = false;
+					it->stuckTicks    = 0;
 				}
 				else if (!playerOnMount && pedOnMount)
 				{
+					it->hasFollowTask = false;
+					it->stuckTicks    = 0;
 					if (++it->dismountTicks >= 2)
 					{
 						TASK::TASK_DISMOUNT_ANIMAL(pedHandle, 0, 0, 0, 0, 0);
@@ -209,13 +278,45 @@ namespace YimMenu::Submenus
 				}
 				else if (!pedOnMount)
 				{
-					TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(pedHandle, playerHandle, -1.5f, -1.5f, 0.0f, 3.0f, -1, 2.0f, true, false, false, true, false, false);
+					// reissue follow only when needed: every reissue restarts the
+					// path and makes followers stutter, so keep a standing order
+					const Vector3 pedPos   = ENTITY::GET_ENTITY_COORDS(pedHandle, true, true);
+					const float distPlayer = DistBetween(pedPos, playerPos);
+					const bool playerMoved = !it->hasFollowTask || DistBetween(playerPos, it->lastFollowTarget) > 5.0f;
+
+					if (distPlayer > 4.0f)
+					{
+						if (DistBetween(pedPos, it->lastPedPos) < 0.5f)
+							++it->stuckTicks;
+						else
+							it->stuckTicks = 0;
+
+						if (playerMoved || it->stuckTicks >= 6)
+						{
+							if (it->stuckTicks >= 6)
+							{
+								// wedged on geometry: drop the stale task and start over
+								TASK::CLEAR_PED_TASKS_IMMEDIATELY(pedHandle, false, true);
+								it->stuckTicks = 0;
+							}
+							TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(pedHandle, playerHandle, -1.5f, -1.5f, 0.0f, 3.0f, -1, 2.0f, true, false, false, true, false, false);
+							it->lastFollowTarget = playerPos;
+							it->hasFollowTask    = true;
+						}
+					}
+					else
+					{
+						it->stuckTicks = 0;
+					}
+					it->lastPedPos    = pedPos;
 					it->dismountTicks = 0;
 				}
 				else
 				{
 					// both mounted: the player group AI rides along, no explicit task needed
 					it->dismountTicks = 0;
+					it->hasFollowTask = false;
+					it->stuckTicks    = 0;
 				}
 				++it;
 			}
@@ -226,7 +327,7 @@ namespace YimMenu::Submenus
 		s_aliveCount = 0;
 	}
 
-	static void SpawnCompanions()
+	static void SpawnCompanions(int count, bool withHorses)
 	{
 		DismissCompanions();
 
@@ -261,7 +362,11 @@ namespace YimMenu::Submenus
 			return;
 		}
 		for (const char* horseModel : kHorses)
+		{
+			if (!withHorses)
+				break;
 			RequestModelBlocking(Joaat(horseModel));
+		}
 
 		YimMenu::Ped playerPed = Self::GetPed();
 		if (!playerPed.IsValid())
@@ -276,11 +381,11 @@ namespace YimMenu::Submenus
 		std::uniform_int_distribution<std::size_t> weaponDist(0, sizeof(kCombatWeapons) / sizeof(kCombatWeapons[0]) - 1);
 
 		int spawned = 0;
-		for (int i = 0; i < kCompanionCount; ++i)
+		for (int i = 0; i < count; ++i)
 		{
 			ScriptMgr::Yield(); // spread networked spawns across ticks
 
-			const float angle = (float)i * 0.6283185f; // 2*PI / 10, ring around the player
+			const float angle = 6.2831853f * (float)i / (float)(count > 0 ? count : 1); // ring around the player
 			Vector3 pos = ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(playerHandle, std::cos(angle) * 5.0f, std::sin(angle) * 5.0f, 0.0f);
 			float groundZ = 0.0f;
 			if (MISC::GET_GROUND_Z_FOR_3D_COORD(pos.x, pos.y, pos.z + 5.0f, &groundZ, false))
@@ -293,24 +398,29 @@ namespace YimMenu::Submenus
 				continue;
 			const int pedHandle = companion.GetHandle();
 
-			Vector3 horsePos{pos.x - std::sin(angle) * 2.0f, pos.y + std::cos(angle) * 2.0f, pos.z};
-			YimMenu::Ped horse = YimMenu::Ped::Create(Joaat(kHorses[horseDist(CompanionRng())]), horsePos, 0.0f);
-			if (!horse.IsValid() || !ENTITY::DOES_ENTITY_EXIST(horse.GetHandle()))
-			{
-				companion.ForceControl();
-				companion.Delete();
-				continue;
-			}
-			const int horseHandle = horse.GetHandle();
-
 			ENTITY::SET_ENTITY_VISIBLE(pedHandle, true);
 			ENTITY::RESET_ENTITY_ALPHA(pedHandle);
-			ENTITY::SET_ENTITY_VISIBLE(horseHandle, true);
-			ENTITY::RESET_ENTITY_ALPHA(horseHandle);
 
-			// the horse stands by until the player rides: no fleeing, no wandering off
-			PED::SET_PED_FLEE_ATTRIBUTES(horseHandle, 0, false);
-			PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(horseHandle, true);
+			int horseHandle = 0;
+			if (withHorses)
+			{
+				Vector3 horsePos{pos.x - std::sin(angle) * 2.0f, pos.y + std::cos(angle) * 2.0f, pos.z};
+				YimMenu::Ped horse = YimMenu::Ped::Create(Joaat(kHorses[horseDist(CompanionRng())]), horsePos, 0.0f);
+				if (!horse.IsValid() || !ENTITY::DOES_ENTITY_EXIST(horse.GetHandle()))
+				{
+					companion.ForceControl();
+					companion.Delete();
+					continue;
+				}
+				horseHandle = horse.GetHandle();
+
+				ENTITY::SET_ENTITY_VISIBLE(horseHandle, true);
+				ENTITY::RESET_ENTITY_ALPHA(horseHandle);
+
+				// the horse stands by until the player rides: no fleeing, no wandering off
+				PED::SET_PED_FLEE_ATTRIBUTES(horseHandle, 0, false);
+				PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(horseHandle, true);
+			}
 
 			const char* weapon = kCombatWeapons[weaponDist(CompanionRng())];
 			WEAPON::GIVE_WEAPON_TO_PED(pedHandle, Joaat(weapon), 500, true, false, 0, false, 0.5f, 1.0f, 1, false, 0, false);
@@ -336,8 +446,11 @@ namespace YimMenu::Submenus
 		}
 
 		STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(modelHash);
-		for (const char* horseModel : kHorses)
-			STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(Joaat(horseModel));
+		if (withHorses)
+		{
+			for (const char* horseModel : kHorses)
+				STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(Joaat(horseModel));
+		}
 
 		if (spawned > 0)
 		{
@@ -345,7 +458,7 @@ namespace YimMenu::Submenus
 			FiberPool::Push([] {
 				ManageCompanions();
 			});
-			Notifications::Show("Companions", "Spawned " + std::to_string(spawned) + " companions", NotificationType::Success);
+			Notifications::Show("Companions", "Spawned " + std::to_string(spawned) + " companion" + (spawned > 1 ? "s" : ""), NotificationType::Success);
 		}
 		else
 		{
@@ -411,7 +524,27 @@ namespace YimMenu::Submenus
 		if (ImGui::Button("Spawn 10 Companions"))
 		{
 			FiberPool::Push([] {
-				SpawnCompanions();
+				SpawnCompanions(10, true);
+			});
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Spawn 10 (no horses)"))
+		{
+			FiberPool::Push([] {
+				SpawnCompanions(10, false);
+			});
+		}
+		if (ImGui::Button("Spawn 1 Companion"))
+		{
+			FiberPool::Push([] {
+				SpawnCompanions(1, false);
+			});
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Spawn 1 + Horse"))
+		{
+			FiberPool::Push([] {
+				SpawnCompanions(1, true);
 			});
 		}
 		ImGui::SameLine();
@@ -423,6 +556,6 @@ namespace YimMenu::Submenus
 			});
 		}
 		ImGui::Text("Active: %d", s_aliveCount);
-		ImGui::TextWrapped("Companions follow you, fight your attackers and mount their own horses when you ride.");
+		ImGui::TextWrapped("Companions follow you, fight whoever you fight or whoever fights you, and mount their own horses when you ride.");
 	}
 }

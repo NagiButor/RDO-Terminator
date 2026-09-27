@@ -419,6 +419,7 @@ namespace YimMenu::Submenus
 
         playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<ListCommandItem>("espboxplayers"_J, "Box Style")));
         playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<BoolCommandItem>("espsnaplineplayers"_J, "Snapline")));
+        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<IntCommandItem>("esprenddistplayers"_J, "Render Distance")));
 
         pedEsp->AddItem(std::make_shared<BoolCommandItem>("espdrawpeds"_J));
         pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<BoolCommandItem>("espdrawdeadpeds"_J)));
@@ -440,6 +441,7 @@ namespace YimMenu::Submenus
 
         pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<ListCommandItem>("espboxpeds"_J, "Box Style")));
         pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<BoolCommandItem>("espsnaplinepeds"_J, "Snapline")));
+        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<IntCommandItem>("esprenddistpeds"_J, "Render Distance")));
 
         overlay->AddItem(std::make_shared<BoolCommandItem>("overlay"_J));
         overlay->AddItem(std::make_shared<ConditionalItem>("overlay"_J, std::make_shared<BoolCommandItem>("overlayfps"_J)));

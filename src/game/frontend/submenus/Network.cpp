@@ -121,6 +121,7 @@ namespace YimMenu::Submenus
 
         spoofing->AddItem(std::make_shared<BoolCommandItem>("hidegod"_J));
         spoofing->AddItem(std::make_shared<BoolCommandItem>("hidespectate"_J));
+        spoofing->AddItem(std::make_shared<BoolCommandItem>("hidemodded"_J, "Hide Modded"));
 
         //adminGroup->AddItem(std::make_shared<BoolCommandItem>("detectadmins"_J));
 
@@ -234,7 +235,7 @@ namespace YimMenu::Submenus
             ImGui::Text("Name");
             ImGui::Checkbox("Spoof Name", &g_SpoofingStorage.spoofName);
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Spoof your name");
+                ImGui::SetTooltip("Spoof your name. Plain names only: color/icon prefixes contain '~' and other menus flag that as spoofed");
 
             if (ImGui::BeginCombo("Color Prefix", colors[colorBuf].c_str()))
             {
@@ -272,7 +273,7 @@ namespace YimMenu::Submenus
             ImGui::Text("IP Address");
             ImGui::Checkbox("Spoof IP", &g_SpoofingStorage.spoofIP);
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Spoof your IP");
+                ImGui::SetTooltip("Spoof your IP. Strict menus can still flag a mismatched address, and voice chat may break");
 
             ImGui::DragInt4("##ip_fields", g_SpoofingStorage.spoofedIP.data(), 0, 255);
 

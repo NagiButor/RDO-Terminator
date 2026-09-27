@@ -60,6 +60,7 @@ namespace YimMenu::Submenus {
         explosions->AddItem(std::make_shared<PlayerCommandItem>("explode"_J));
         explosions->AddItem(std::make_shared<PlayerCommandItem>("lightning"_J));
         explosions->AddItem(std::make_shared<PlayerCommandItem>("firenova"_J, "Fire Nova (25m)"));
+        explosions->AddItem(std::make_shared<PlayerCommandItem>("firerain"_J, "Meteor Rain (25m)"));
 
         auto plus = std::make_shared<Group>("Plus");
         plus->AddItem(std::make_shared<PlayerCommandItem>("beatdown"_J, "Beatdown"));
