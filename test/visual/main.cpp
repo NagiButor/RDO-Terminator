@@ -8,7 +8,7 @@
 
 #include "game/frontend/Menu.hpp"
 #include "game/frontend/ESP.hpp"
-#include "game/frontend/submenus/Settings.hpp"
+#include "game/frontend/submenus/Visuals.hpp"
 #include "core/commands/BoolCommand.hpp"
 #include "core/commands/Commands.hpp"
 #include "core/commands/HotkeySystem.hpp"
@@ -222,7 +222,7 @@ namespace
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 {
 	::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-	WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, WndProc, 0, 0, instance, nullptr, nullptr, nullptr, nullptr, L"Mi5hlenVisualTest", nullptr};
+	WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, WndProc, 0, 0, instance, nullptr, nullptr, nullptr, nullptr, L"RDOTerminatorVisualTest", nullptr};
 	::RegisterClassExW(&wc);
 	g_Hwnd = ::CreateWindowW(wc.lpszClassName, L"RDO Terminator - Visual Test (fake scene)", WS_OVERLAPPEDWINDOW,
 	    100, 100, 1280, 800, nullptr, nullptr, instance, nullptr);
@@ -243,10 +243,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 	ImGui_ImplWin32_Init(g_Hwnd);
 	ImGui_ImplDX11_Init(g_Device, g_Context);
 
-	// isolated test config: never touches %appdata%/Mi5hlenMenu
+	// isolated test config: never touches %appdata%/RDOTerminator
 	char* appdata = std::getenv("appdata");
 	const std::filesystem::path testDir =
-	    (appdata ? std::filesystem::path(appdata) : std::filesystem::temp_directory_path()) / "Mi5hlenMenuVisualTest";
+	    (appdata ? std::filesystem::path(appdata) : std::filesystem::temp_directory_path()) / "RDOTerminatorVisualTest";
 	std::filesystem::create_directories(testDir);
 
 	YimMenu::Submenus::Settings::SetSettingsFileOverride((testDir / "settings.json").string());
@@ -255,9 +255,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 
 	YimMenu::Settings::Initialize(YimMenu::File((testDir / "settings.json").string()));
 	YimMenu::g_HotkeySystem.RegisterCommands();
-	YimMenu::UIManager::AddSubmenu(std::make_shared<YimMenu::Submenus::Settings>());
+	YimMenu::UIManager::AddSubmenu(std::make_shared<YimMenu::Submenus::Visuals>());
 	g_SettingsInstance.LoadSettings();
-	YimMenu::Submenus::MigrateThemeOnce();
 
 	YimMenu::MockEspWorld world;
 	world.m_Camera.m_Width  = 1280;

@@ -9,7 +9,7 @@
 
 namespace YimMenu::AttackLog
 {
-	// Appends one line to %appdata%/Mi5hlenMenu/attacks.log:
+	// Appends one line to %appdata%/RDOTerminator/attacks.log:
 	// [time] [category] [sender] text. Never throws, safe to call from hooks.
 	inline void Write(const std::string& category, const std::string& sender, const std::string& text)
 	{

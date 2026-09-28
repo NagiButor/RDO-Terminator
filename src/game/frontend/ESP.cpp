@@ -83,7 +83,7 @@ namespace YimMenu::Features
     BoolCommand _ESPHealth("esphealthplayers", "Show Player Health", "Should the ESP draw player HP bars?");
     BoolCommand _ESPDistance("espdistanceplayers", "Show Player Distance", "Should the ESP draw player distance?");
     BoolCommand _ESPSkeleton("espskeletonplayers", "Show Player Skeleton", "Should the ESP draw player skeletons?");
-    IntCommand _ESPRenderDistancePlayers("esprenddistplayers", "Render Distance", "Max ESP render distance for players (m)", 50, 1000, 500);
+    IntCommand _ESPRenderDistancePlayers("esprenddistplayers", "Render Distance", "Max ESP render distance for players (m)", 100, 20000, 500);
     ListCommand _ESPBoxPlayers("espboxplayers", "Box Style", "Bounding box around players", {{0, "Off"}, {1, "Corners"}, {2, "Full"}}, 1);
     BoolCommand _ESPSnaplinePlayers("espsnaplineplayers", "Show Snapline", "Line from the bottom of the screen to the player");
 
@@ -101,7 +101,7 @@ namespace YimMenu::Features
     BoolCommand _ESPDistancePeds("espdistancepeds", "Show Ped Distance", "Should the ESP draw distance?");
     BoolCommand _ESPSkeletonPeds("espskeletonpeds", "Show Ped Skeleton", "Should the ESP draw the skeleton?");
     BoolCommand _ESPSkeletonHorse("espskeletonhorse", "Show Horse Skeleton", "Should the ESP draw horse skeletons?");
-    IntCommand _ESPRenderDistancePeds("esprenddistpeds", "Render Distance", "Max ESP render distance for peds (m)", 50, 1000, 300);
+    IntCommand _ESPRenderDistancePeds("esprenddistpeds", "Render Distance", "Max ESP render distance for peds (m)", 100, 20000, 300);
     ListCommand _ESPBoxPeds("espboxpeds", "Box Style", "Bounding box around peds", {{0, "Off"}, {1, "Corners"}, {2, "Full"}}, 1);
     BoolCommand _ESPSnaplinePeds("espsnaplinepeds", "Show Snapline", "Line from the bottom of the screen to the ped");
 

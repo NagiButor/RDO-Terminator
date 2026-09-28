@@ -16,7 +16,7 @@ namespace YimMenu
 		if (!appdata) {
 			return std::filesystem::current_path() / "AniDict.json";
 		}
-		std::filesystem::path dir = std::filesystem::path(appdata) / "Mi5hlenMenu";
+		std::filesystem::path dir = std::filesystem::path(appdata) / "RDOTerminator";
 		std::filesystem::create_directories(dir); // ensure exists
 		return dir / "AniDict.json";
 	}
@@ -27,7 +27,7 @@ namespace YimMenu
 		if (!appdata) {
 			return std::filesystem::current_path() / "AniDict.toggle";
 		}
-		std::filesystem::path dir = std::filesystem::path(appdata) / "Mi5hlenMenu";
+		std::filesystem::path dir = std::filesystem::path(appdata) / "RDOTerminator";
 		std::filesystem::create_directories(dir);
 		return dir / "AniDict.toggle";
 	}

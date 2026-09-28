@@ -10,7 +10,7 @@
 namespace YimMenu::Menu
 {
 	// bump on every release so users can verify which build is loaded in game
-	inline constexpr const char* kMenuVersion = "2026.09.22";
+	inline constexpr const char* kMenuVersion = "2026.09.28";
 
 	extern void Init();
 	extern void SetupStyle();

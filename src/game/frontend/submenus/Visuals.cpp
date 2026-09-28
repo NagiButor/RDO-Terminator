@@ -1,10 +1,20 @@
 #include "Visuals.hpp"
 
+#include "core/commands/Commands.hpp"
+#include "core/commands/IntCommand.hpp"
 #include "game/frontend/items/Items.hpp"
+
+#include <string>
 
 namespace YimMenu::Submenus
 {
-    Visuals::Visuals() :
+    static std::string FormatMeters(int meters)
+    {
+        std::string s = std::to_string(meters);
+        for (int i = (int)s.size() - 3; i > 0; i -= 3)
+            s.insert((size_t)i, " ");
+        return s + " m";
+    }    Visuals::Visuals() :
         Submenu::Submenu("Visuals")
     {
         auto esp     = std::make_shared<Category>("ESP");
@@ -34,6 +44,10 @@ namespace YimMenu::Submenus
         playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<ListCommandItem>("espboxplayers"_J, "Box Style")));
         playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<BoolCommandItem>("espsnaplineplayers"_J, "Snapline")));
         playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<IntCommandItem>("esprenddistplayers"_J, "Render Distance")));
+        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<ImGuiItem>([] {
+            if (auto cmd = Commands::GetCommand<IntCommand>("esprenddistplayers"_J))
+                ImGui::TextDisabled("Draws players up to %s (Ctrl+Click the slider for an exact value)", FormatMeters(cmd->GetState()).c_str());
+        })));
 
         pedEsp->AddItem(std::make_shared<BoolCommandItem>("espdrawpeds"_J));
         pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<BoolCommandItem>("espdrawdeadpeds"_J)));
@@ -56,6 +70,10 @@ namespace YimMenu::Submenus
         pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<ListCommandItem>("espboxpeds"_J, "Box Style")));
         pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<BoolCommandItem>("espsnaplinepeds"_J, "Snapline")));
         pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<IntCommandItem>("esprenddistpeds"_J, "Render Distance")));
+        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<ImGuiItem>([] {
+            if (auto cmd = Commands::GetCommand<IntCommand>("esprenddistpeds"_J))
+                ImGui::TextDisabled("Draws peds up to %s (Ctrl+Click the slider for an exact value)", FormatMeters(cmd->GetState()).c_str());
+        })));
 
         overlayGroup->AddItem(std::make_shared<BoolCommandItem>("overlay"_J));
         overlayGroup->AddItem(std::make_shared<ConditionalItem>("overlay"_J, std::make_shared<BoolCommandItem>("overlayfps"_J)));

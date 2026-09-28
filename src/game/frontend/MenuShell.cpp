@@ -28,7 +28,7 @@ namespace YimMenu::Menu
 		static std::string path;
 		if (iniPath.empty())
 		{
-			auto file_path = std::filesystem::path(std::getenv("appdata")) / "Mi5hlenMenu" / "imgui.ini";
+			auto file_path = std::filesystem::path(std::getenv("appdata")) / "RDOTerminator" / "imgui.ini";
 			path           = file_path.string();
 		}
 		else
@@ -86,7 +86,7 @@ namespace YimMenu::Menu
 		// never let the window (or a game minimize/restore cycle) squeeze it
 		// into a slit the user then has to stretch back manually
 		ImGui::SetNextWindowSizeConstraints(ImVec2((float)minW, (float)minH), ImVec2((float)maxW, (float)maxH));
-		const bool window_visible = ImGui::Begin("##Mi5hlenMenu", nullptr,
+		const bool window_visible = ImGui::Begin("##RDOTerminator", nullptr,
 		    ImGuiWindowFlags_NoTitleBar |
 		    ImGuiWindowFlags_NoCollapse |
 		    ImGuiWindowFlags_AlwaysUseWindowPadding |

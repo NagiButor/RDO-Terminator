@@ -1,11 +1,9 @@
-# Mi5hlen Menu
+# RDO Terminator
 
 A powerful, community-driven mod menu for **Red Dead Redemption 2** and **Red Dead Online** by Rockstar Games.
 **Strictly for educational purposes.**
 
-- **Author & maintainer:** Mi5hlen
-- **Telegram:** [@Mi5hlen](https://t.me/Mi5hlen) — support, updates & builds
-- Based on **Terminus / HorseMenu** (upstream: [YimMenu/HorseMenu](https://github.com/YimMenu/HorseMenu))
+- **Creator:** tg:@Mi5hlen — support, updates & builds
 
 > This is a **BETA** build — some things may not work as intended. Bug reports and ideas are always welcome on Telegram.
 

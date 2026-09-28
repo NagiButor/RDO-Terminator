@@ -21,10 +21,10 @@ namespace YimMenu
 {
 	static DWORD Main(void*)
 	{
-		const auto documents = std::filesystem::path(std::getenv("appdata")) / "Mi5hlenMenu";
+		const auto documents = std::filesystem::path(std::getenv("appdata")) / "RDOTerminator";
 		FileMgr::Init(documents);
 
-		LogHelper::Init("Mi5hlen Menu", FileMgr::GetProjectFile("./cout.log"));
+		LogHelper::Init("RDO Terminator", FileMgr::GetProjectFile("./cout.log"));
 
 		g_HotkeySystem.RegisterCommands();
 		SavedLocations::FetchSavedLocations();
@@ -59,7 +59,7 @@ namespace YimMenu
 		ScriptMgr::AddScript(std::make_unique<Script>(&ContextMenuTick));
 		ScriptMgr::AddScript(std::make_unique<Script>(&MapEditor::Update));
 
-		Notifications::Show("Mi5hlen Menu", "Loaded succesfully", NotificationType::Success);
+		Notifications::Show("RDO Terminator", "Loaded succesfully", NotificationType::Success);
 
 #ifndef NDEBUG
 		LOG(WARNING) << "Debug Build. Switch to RelWithDebInfo or Release build configurations to have a more stable experience.";

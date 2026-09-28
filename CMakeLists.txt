@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20.x)
 
-project(Mi5hlenMenu VERSION 0.0.1 DESCRIPTION "Mi5hlen Menu, a beta-stage mod menu for Red Dead Redemption 2 and Red Dead Online, based on Terminus/YimMenu, that protects against crashes and enhances your experience.")
+project(RDOTerminator VERSION 0.0.1 DESCRIPTION "RDO Terminator, a beta-stage menu for Red Dead Redemption 2 and Red Dead Online.")
 
 # libs
 include(cmake/vulkan.cmake)

@@ -22,6 +22,7 @@ set(VISUAL_TEST_SOURCES
     "${SRC_DIR}/game/frontend/ESP.cpp"
     "${SRC_DIR}/game/frontend/fonts/MainFont.cpp"
     "${SRC_DIR}/game/frontend/submenus/Settings.cpp"
+    "${SRC_DIR}/game/frontend/submenus/Visuals.cpp"
     "${SRC_DIR}/game/frontend/items/BoolCommandItem.cpp"
     "${SRC_DIR}/game/frontend/items/Button.cpp"
     "${SRC_DIR}/game/frontend/items/ColorCommandItem.cpp"
