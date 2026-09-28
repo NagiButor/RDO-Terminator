@@ -5,15 +5,13 @@
 
 namespace YimMenu::Submenus
 {
-	class Self : public Submenu
-	{
-	public:
-		Self();
-	};
-
 	void RenderAnimationsCategory();
 	void RenderCompanionsCategory();
 
 	void LoadMusicHistory();
 	void SaveMusicHistory();
+
+	// one-time init for the animation/music history backing stores
+	// (used by the Player submenu, which now owns those categories)
+	void EnsureSelfHelpersLoaded();
 }

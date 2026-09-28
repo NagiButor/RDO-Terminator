@@ -8,12 +8,16 @@
 #include "game/backend/ScriptMgr.hpp"
 #include "game/frontend/fonts/Fonts.hpp"
 #include "game/pointers/Pointers.hpp"
+#include "submenus/About.hpp"
 #include "submenus/Debug.hpp"
+#include "submenus/Interface.hpp"
 #include "submenus/Network.hpp"
 #include "submenus/Players.hpp"
-#include "submenus/Self.hpp"
-#include "submenus/Settings.hpp"
-#include "submenus/Teleport.hpp"
+#include "submenus/Player.hpp"
+#include "submenus/Protection.hpp"
+#include "submenus/Vehicle.hpp"
+#include "submenus/Visuals.hpp"
+#include "submenus/Weapons.hpp"
 #include "submenus/World.hpp"
 #include "submenus/Recovery.hpp"
 
@@ -29,20 +33,18 @@ namespace YimMenu
 	{
 		g_SettingsInstance.LoadSettings();
 
-		UIManager::AddSubmenu(std::make_shared<Submenus::Self>());
-		UIManager::AddSubmenu(std::make_shared<Submenus::Teleport>());
-		UIManager::AddSubmenu(std::make_shared<Submenus::Network>());
-		UIManager::AddSubmenu(std::make_shared<Submenus::Players>());
+		UIManager::AddSubmenu(std::make_shared<Submenus::Player>());
+		UIManager::AddSubmenu(std::make_shared<Submenus::Visuals>());
+		UIManager::AddSubmenu(std::make_shared<Submenus::Weapons>());
+		UIManager::AddSubmenu(std::make_shared<Submenus::Vehicle>());
 		UIManager::AddSubmenu(std::make_shared<Submenus::World>());
+		UIManager::AddSubmenu(std::make_shared<Submenus::Players>());
+		UIManager::AddSubmenu(std::make_shared<Submenus::Network>());
+		UIManager::AddSubmenu(std::make_shared<Submenus::Protection>());
 		UIManager::AddSubmenu(std::make_shared<Submenus::Recovery>());
-		UIManager::AddSubmenu(std::make_shared<Submenus::Settings>());
+		UIManager::AddSubmenu(std::make_shared<Submenus::Interface>());
+		UIManager::AddSubmenu(std::make_shared<Submenus::About>());
 		UIManager::AddSubmenu(std::make_shared<Submenus::Debug>());
-
-		// one-time theme migration for installs that still carry the old blue colors
-		FiberPool::Push([] {
-			ScriptMgr::Yield(std::chrono::seconds(5));
-			Submenus::MigrateThemeOnce();
-		});
 
 		Renderer::AddRendererCallBack(
 			[&] {

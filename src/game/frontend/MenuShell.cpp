@@ -3,6 +3,7 @@
 // (window geometry + theme colors) and an injected ShellContext, so it can
 // run without Renderer, GUI, MapEditor, FiberPool or any game backend.
 #include "game/frontend/Menu.hpp"
+#include "game/frontend/Theme.hpp"
 
 #include "core/frontend/manager/UIManager.hpp"
 #include "game/frontend/fonts/Fonts.hpp"
@@ -18,17 +19,7 @@ namespace YimMenu::Menu
 {
 	void SetupStyle()
 	{
-		ImGuiStyle& style = ImGui::GetStyle();
-
-		style.FramePadding = ImVec2(style.FramePadding.x * 0.5f, style.FramePadding.y * 0.4f); // Reduce FramePadding
-		style.CellPadding  = ImVec2(style.CellPadding.x * 0.6f, style.CellPadding.y * 0.2f); // Reduce CellPadding
-		style.ItemSpacing  = ImVec2(style.ItemSpacing.x * 0.5f, style.ItemSpacing.y * 0.3f); // Reduced vertical ItemSpacing
-		style.ItemInnerSpacing = ImVec2(style.ItemInnerSpacing.x * 0.5f, style.ItemInnerSpacing.y * 0.5f); // Reduce ItemInnerSpacing
-		style.WindowPadding    = ImVec2(style.WindowPadding.x * 0.5f, style.WindowPadding.y * 0.4f); // Reduced vertical WindowPadding
-
-		YimMenu::Submenus::ApplyMenuColors();
-
-		style.GrabRounding = style.FrameRounding = style.ChildRounding = style.WindowRounding = 6.0f; // Apply rounding
+		YimMenu::Theme::ApplySignatureTheme();
 	}
 
 	void SetupFonts(const std::string& iniPath)
@@ -102,19 +93,23 @@ namespace YimMenu::Menu
 		    ImGuiWindowFlags_NoSavedSettings);
 		if (window_visible)
 		{
+			// product header: name + version on the left, live status on the right
 			if (ctx.m_Logo)
 			{
 				ImGui::Image(ctx.m_Logo, ImVec2(30, 30));
-				ImGui::SameLine();
+				ImGui::SameLine(0.f, 8.f);
 			}
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
-			ImGui::Text("RDO Terminator");
-			ImGui::SameLine();
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.25f, 0.25f, 1.0f));
-			ImGui::Text("| by Mi5hlen");
-			ImGui::SameLine();
-			ImGui::TextDisabled(kMenuVersion);
+			ImGui::TextUnformatted("RDO Terminator");
+			ImGui::SameLine(0.f, 8.f);
+			ImGui::PushStyleColor(ImGuiCol_Text, YimMenu::Theme::MutedText());
+			ImGui::TextUnformatted(kMenuVersion);
 			ImGui::PopStyleColor();
+
+			const float statusW = 110.f;
+			ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - statusW);
+			const float pulse = 0.6f + 0.4f * std::sin((float)ImGui::GetTime() * 3.f);
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.30f * pulse + 0.1f, 0.75f, 0.35f, 1.f));
+			ImGui::BulletText("READY");
 			ImGui::PopStyleColor();
 
 			float rainbow_t = std::fmod((float)ImGui::GetTime() * 0.3f, 1.0f);
@@ -123,7 +118,7 @@ namespace YimMenu::Menu
 			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(rainbow_r, rainbow_g, rainbow_b, 1.0f));
 			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.03f, 0.03f, 0.9f));
 			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.30f, 0.06f, 0.06f, 1.0f));
-			if (ImGui::Button(ctx.m_IsGodMode && ctx.m_IsGodMode() ? "God Mode: ON" : "God Mode", ImVec2(140, 0)))
+			if (ImGui::Button(ctx.m_IsGodMode && ctx.m_IsGodMode() ? "God Mode: ON" : "God Mode", ImVec2(-1, 0)))
 			{
 				if (ctx.m_ToggleGodMode)
 					ctx.m_PushTask([toggle = ctx.m_ToggleGodMode] {

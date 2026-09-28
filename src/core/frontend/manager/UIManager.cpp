@@ -1,4 +1,5 @@
 #include "UIManager.hpp"
+#include "game/frontend/Theme.hpp"
 
 namespace YimMenu
 {
@@ -17,17 +18,24 @@ namespace YimMenu
 
     void UIManager::DrawImpl()
     {
-        // Left column: submenu selector. Height fills the remaining content
-        // region; the right side flows naturally next to it, so nothing can
-        // overlap regardless of fonts, DPI or window size.
-        constexpr float kSubmenuColumnWidth = 80.f;
-        if (ImGui::BeginChild("##submenus", ImVec2(kSubmenuColumnWidth, 0), true))
+        // Left rail: section selector with an accent bar on the active entry.
+        // The right side flows naturally next to it, so nothing can overlap
+        // regardless of fonts, DPI or window size.
+        constexpr float kSidebarWidth = 118.f;
+        if (ImGui::BeginChild("##submenus", ImVec2(kSidebarWidth, 0), true))
         {
             for (auto& submenu : m_Submenus)
             {
-                if (ImGui::Selectable(submenu->m_Name.data(), (submenu == m_ActiveSubmenu)))
+                const bool active = (submenu == m_ActiveSubmenu);
+                if (ImGui::Selectable(submenu->m_Name.data(), active))
                 {
                     SetActiveSubmenu(submenu);
+                }
+                if (active)
+                {
+                    const ImVec2 mn = ImGui::GetItemRectMin();
+                    const ImVec2 mx = ImGui::GetItemRectMax();
+                    ImGui::GetWindowDrawList()->AddRectFilled({mn.x, mn.y}, {mn.x + 3.f, mx.y}, ImGui::ColorConvertFloat4ToU32(YimMenu::Theme::Accent()));
                 }
             }
         }
@@ -35,9 +43,14 @@ namespace YimMenu
 
         ImGui::SameLine();
 
-        ImGui::BeginGroup(); // right side: categories row + options
+        ImGui::BeginGroup(); // right side: page header, categories row, options
+        if (m_ActiveSubmenu)
+            YimMenu::Theme::DrawSectionTitle(m_ActiveSubmenu->m_Name.data());
+
         if (m_ActiveSubmenu)
             m_ActiveSubmenu->DrawCategorySelectors();
+
+        ImGui::Separator();
 
         if (ImGui::BeginChild("##options", ImVec2(0, 0), true))
         {

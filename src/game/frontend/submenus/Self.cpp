@@ -47,21 +47,21 @@ namespace YimMenu::Submenus
 	static std::set<std::pair<std::string, std::string>> favoriteAnimations;
 	static std::set<std::string> favoriteMusics;
 
-	static std::string GetMi5hlenRoamingPath(const std::string& filename)
+	static std::string GetTerminatorRoamingPath(const std::string& filename)
 	{
 		const char* appData = std::getenv("APPDATA");
 		std::string base;
 		if (appData)
-			base = std::string(appData) + "\\Mi5hlenMenu\\";
+			base = std::string(appData) + "\\RDOTerminator\\";
 		else
-			base = "Mi5hlenMenu\\";
+			base = "RDOTerminator\\";
 		std::filesystem::create_directories(base);
 		return base + filename;
 	}
 
 	static void LoadAnimationHistory()
 	{
-		std::ifstream in(GetMi5hlenRoamingPath("animation_history.txt"));
+		std::ifstream in(GetTerminatorRoamingPath("animation_history.txt"));
 		if (!in.is_open()) return;
 		lastPlayedAnimations.clear();
 		std::string dict, anim;
@@ -75,7 +75,7 @@ namespace YimMenu::Submenus
 
 	static void SaveAnimationHistory()
 	{
-		std::ofstream out(GetMi5hlenRoamingPath("animation_history.txt"), std::ios::trunc);
+		std::ofstream out(GetTerminatorRoamingPath("animation_history.txt"), std::ios::trunc);
 		for (const auto& [dict, anim] : lastPlayedAnimations)
 			out << dict << "\n" << anim << "\n";
 		out.close();
@@ -83,7 +83,7 @@ namespace YimMenu::Submenus
 
 	static void LoadFavoriteAnimations()
 	{
-		std::ifstream in(GetMi5hlenRoamingPath("animation_favorites.txt"));
+		std::ifstream in(GetTerminatorRoamingPath("animation_favorites.txt"));
 		if (!in.is_open()) return;
 		favoriteAnimations.clear();
 		std::string dict, anim;
@@ -94,7 +94,7 @@ namespace YimMenu::Submenus
 
 	static void SaveFavoriteAnimations()
 	{
-		std::ofstream out(GetMi5hlenRoamingPath("animation_favorites.txt"), std::ios::trunc);
+		std::ofstream out(GetTerminatorRoamingPath("animation_favorites.txt"), std::ios::trunc);
 		for (const auto& [dict, anim] : favoriteAnimations)
 			out << dict << "\n" << anim << "\n";
 		out.close();
@@ -102,7 +102,7 @@ namespace YimMenu::Submenus
 
 	static void LoadMusicHistory()
 	{
-		std::ifstream in(GetMi5hlenRoamingPath("music_history.txt"));
+		std::ifstream in(GetTerminatorRoamingPath("music_history.txt"));
 		if (!in.is_open()) return;
 		lastPlayedMusics.clear();
 		std::string music;
@@ -117,7 +117,7 @@ namespace YimMenu::Submenus
 
 	static void SaveMusicHistory()
 	{
-		std::ofstream out(GetMi5hlenRoamingPath("music_history.txt"), std::ios::trunc);
+		std::ofstream out(GetTerminatorRoamingPath("music_history.txt"), std::ios::trunc);
 		for (const auto& music : lastPlayedMusics)
 			out << music << "\n";
 		out.close();
@@ -125,7 +125,7 @@ namespace YimMenu::Submenus
 
 	static void LoadFavoriteMusics()
 	{
-		std::ifstream in(GetMi5hlenRoamingPath("music_favorites.txt"));
+		std::ifstream in(GetTerminatorRoamingPath("music_favorites.txt"));
 		if (!in.is_open()) return;
 		favoriteMusics.clear();
 		std::string music;
@@ -136,7 +136,7 @@ namespace YimMenu::Submenus
 
 	static void SaveFavoriteMusics()
 	{
-		std::ofstream out(GetMi5hlenRoamingPath("music_favorites.txt"), std::ios::trunc);
+		std::ofstream out(GetTerminatorRoamingPath("music_favorites.txt"), std::ios::trunc);
 		for (const auto& music : favoriteMusics)
 			out << music << "\n";
 		out.close();
@@ -630,7 +630,7 @@ namespace YimMenu::Submenus
 				{
 					favoriteMusics.erase(music_event);
 					SaveFavoriteMusics();
-					std::ofstream out(GetMi5hlenRoamingPath("music_favorites.txt"), std::ios::trunc);
+					std::ofstream out(GetTerminatorRoamingPath("music_favorites.txt"), std::ios::trunc);
 					for (const auto& music : favoriteMusics) out << music << "\n";
 					out.close();
 				}
@@ -640,7 +640,7 @@ namespace YimMenu::Submenus
 			{
 				favoriteMusics.clear();
 				SaveFavoriteMusics();
-				std::ofstream out(GetMi5hlenRoamingPath("music_favorites.txt"), std::ios::trunc);
+				std::ofstream out(GetTerminatorRoamingPath("music_favorites.txt"), std::ios::trunc);
 				out.close();
 			}
 		}
@@ -668,7 +668,7 @@ namespace YimMenu::Submenus
 					{
 						favoriteMusics.erase(fav);
 						SaveFavoriteMusics();
-						std::ofstream out(GetMi5hlenRoamingPath("music_favorites.txt"), std::ios::trunc);
+						std::ofstream out(GetTerminatorRoamingPath("music_favorites.txt"), std::ios::trunc);
 						for (const auto& music : favoriteMusics) out << music << "\n";
 						out.close();
 						if (favMusicIndex == i) favMusicIndex = -1;
@@ -701,307 +701,24 @@ namespace YimMenu::Submenus
 			{
 				lastPlayedMusics.clear();
 				SaveMusicHistory();
-				std::ofstream out(GetMi5hlenRoamingPath("music_history.txt"), std::ios::trunc);
+				std::ofstream out(GetTerminatorRoamingPath("music_history.txt"), std::ios::trunc);
 				out.close();
 			}
 		}
 	}
 
-	Self::Self() : Submenu::Submenu("Self")
+
+	void EnsureSelfHelpersLoaded()
 	{
+		static bool loaded = false;
+		if (loaded)
+			return;
+		loaded = true;
+
 		LoadAnimationHistory();
 		LoadFavoriteAnimations();
 		LoadFavoriteMusics();
 		LoadMusicHistory();
-
-		auto main = std::make_shared<Category>("Main");
-		auto globalsGroup = std::make_shared<Group>("Globals");
-		auto movementGroup = std::make_shared<Group>("Movement");
-		auto toolsGroup = std::make_shared<Group>("Tools");
-
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("godmode"_J));
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("neverwanted"_J));
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("invis"_J));
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("offtheradar"_J));
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("ghostmode"_J, "Ghost Mode"));
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("noragdoll"_J));
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("antiafk"_J));
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("keepbarsfilled"_J));
-		globalsGroup->AddItem(std::make_shared<ConditionalItem>("keepbarsfilled"_J, std::make_shared<BoolCommandItem>("keepdeadeyefilled"_J)));
-		globalsGroup->AddItem(std::make_shared<ConditionalItem>("keepbarsfilled"_J, std::make_shared<BoolCommandItem>("keepstaminafilled"_J)));
-		globalsGroup->AddItem(std::make_shared<ConditionalItem>("keepbarsfilled"_J, std::make_shared<BoolCommandItem>("keephealthfilled"_J)));
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("keepcoresfilled"_J));
-		globalsGroup->AddItem(std::make_shared<ConditionalItem>("keepcoresfilled"_J, std::make_shared<BoolCommandItem>("keepdeadeyecorefilled"_J)));
-		globalsGroup->AddItem(std::make_shared<ConditionalItem>("keepcoresfilled"_J, std::make_shared<BoolCommandItem>("keepstaminacorefilled"_J)));
-		globalsGroup->AddItem(std::make_shared<ConditionalItem>("keepcoresfilled"_J, std::make_shared<BoolCommandItem>("keephealthcorefilled"_J)));
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("keepclean"_J));
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("antilasso"_J));
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("antihogtie"_J));
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("antimelee"_J));
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("drunk"_J));
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("superpunch"_J));
-		globalsGroup->AddItem(std::make_shared<BoolCommandItem>("quickskin"_J));
-
-		toolsGroup->AddItem(std::make_shared<CommandItem>("suicide"_J));
-		toolsGroup->AddItem(std::make_shared<CommandItem>("clearcrimes"_J));
-		toolsGroup->AddItem(std::make_shared<BoolCommandItem>("npcignore"_J));
-		toolsGroup->AddItem(std::make_shared<BoolCommandItem>("eagleeye"_J));
-		toolsGroup->AddItem(std::make_shared<BoolCommandItem>("overridewhistle"_J));
-		toolsGroup->AddItem(std::make_shared<ConditionalItem>("overridewhistle"_J, std::make_shared<FloatCommandItem>("whistlepitch"_J, "Pitch")));
-		toolsGroup->AddItem(std::make_shared<ConditionalItem>("overridewhistle"_J, std::make_shared<FloatCommandItem>("whistleclarity"_J, "Clarity")));
-		toolsGroup->AddItem(std::make_shared<ConditionalItem>("overridewhistle"_J, std::make_shared<FloatCommandItem>("whistleshape"_J, "Shape")));
-
-		static float playerScale = 1.0f;
-		toolsGroup->AddItem(std::make_shared<ImGuiItem>([] {
-			ImGui::Text("Player Scale");
-			ImGui::SetNextItemWidth(100.0f);
-			if (ImGui::InputFloat("##PlayerScale", &playerScale))
-			{
-				FiberPool::Push([] {
-					YimMenu::Self::GetPed().SetScale(playerScale);
-				});
-			}
-		}));
-
-		movementGroup->AddItem(std::make_shared<BoolCommandItem>("climbsteepslopes"_J));
-		movementGroup->AddItem(std::make_shared<BoolCommandItem>("superjump"_J));
-		movementGroup->AddItem(std::make_shared<BoolCommandItem>("superrun"_J));
-		movementGroup->AddItem(std::make_shared<BoolCommandItem>("noclip"_J));
-		movementGroup->AddItem(std::make_shared<ConditionalItem>("noclip"_J, std::make_shared<FloatCommandItem>("noclipspeed"_J)));
-		movementGroup->AddItem(std::make_shared<BoolCommandItem>("freecam"_J));
-		movementGroup->AddItem(std::make_shared<ConditionalItem>("freecam"_J, std::make_shared<FloatCommandItem>("freecamspeed"_J)));
-		movementGroup->AddItem(std::make_shared<ConditionalItem>("freecam"_J, std::make_shared<BoolCommandItem>("freecamlightning"_J, "Freecam Lightning (LMB)")));
-
-		main->AddItem(globalsGroup);
-		main->AddItem(toolsGroup);
-		main->AddItem(movementGroup);
-		AddCategory(std::move(main));
-
-		auto weapons = std::make_shared<Category>("Weapons");
-		auto weaponsGlobalsGroup = std::make_shared<Group>("Globals");
-		weaponsGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("infiniteammo"_J));
-		weaponsGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("infiniteclip"_J));
-		weaponsGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("nospread"_J));
-		weaponsGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("autocock"_J));
-		weaponsGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("keepgunsclean"_J));
-
-		weaponsGlobalsGroup->AddItem(std::make_shared<ImGuiItem>([] {
-			if (ImGui::Button("Give All Weapons"))
-			{
-				FiberPool::Push([] {
-					YimMenu::Features::TriggerGiveAllWeapons();
-				});
-			}
-			if (ImGui::Button("Give All Ammo"))
-			{
-				FiberPool::Push([] {
-					YimMenu::Features::TriggerGiveAllAmmo();
-				});
-			}
-		}));
-
-		weapons->AddItem(weaponsGlobalsGroup);
-
-		auto rareWeaponsGroup = std::make_shared<Group>("Rare & Scopes");
-		rareWeaponsGroup->AddItem(std::make_shared<ImGuiItem>([] {
-			auto give_rare = [](Hash weapon, const char* label) {
-				FiberPool::Push([weapon, label] {
-					const int ped = YimMenu::Self::GetPed().GetHandle();
-					if (!ENTITY::DOES_ENTITY_EXIST(ped))
-						return;
-					WEAPON::GIVE_WEAPON_TO_PED(ped, weapon, 200, true, false, 0, true, 0.5f, 1.0f, 0x2CD419DC, true, 0.0f, false);
-					WEAPON::SET_CURRENT_PED_WEAPON(ped, weapon, true, 0, false, false);
-					// verify instead of blindly reporting success
-					if (WEAPON::HAS_PED_GOT_WEAPON(ped, weapon, 0, false))
-						Notifications::Show("Weapons", std::string(label) + " added and equipped.", NotificationType::Success);
-					else
-						Notifications::Show("Weapons", std::string(label) + ": game refused it (inventory sync).", NotificationType::Error);
-				});
-			};
-
-			if (ImGui::Button("Give M1899 Pistol", ImVec2(-1, 0)))
-				give_rare("WEAPON_PISTOL_M1899"_J, "M1899 Pistol");
-			if (ImGui::Button("Give Midnight's Pistol", ImVec2(-1, 0)))
-				give_rare("WEAPON_PISTOL_MAUSER_DRUNK"_J, "Midnight's Pistol");
-
-			ImGui::Separator();
-
-			if (ImGui::Button("Remove sniper scopes (iron sights)", ImVec2(-1, 0)))
-			{
-				FiberPool::Push([] {
-					const int ped = YimMenu::Self::GetPed().GetHandle();
-					if (!ENTITY::DOES_ENTITY_EXIST(ped))
-						return;
-
-					// scope components sold for these rifles (see catalog_sp.ymt):
-					// COMPONENT_RIFLE_SCOPE02/03/04, COMPONENT_SCOPE_NONE = iron sights
-					static constexpr Hash kRifles[] = {
-						"WEAPON_SNIPERRIFLE_CARCANO"_J,
-						"WEAPON_SNIPERRIFLE_ROLLINGBLOCK"_J,
-					};
-					static constexpr const char* kRifleNames[] = {
-						"Carcano",
-						"Rolling Block",
-					};
-					static constexpr Hash kScopes[] = {
-						"COMPONENT_RIFLE_SCOPE02"_J,
-						"COMPONENT_RIFLE_SCOPE03"_J,
-						"COMPONENT_RIFLE_SCOPE04"_J,
-					};
-
-					std::string report;
-					for (std::size_t r = 0; r < 2; ++r)
-					{
-						const Hash rifle = kRifles[r];
-						int removed      = 0;
-
-						// no ownership gate: attempt removal blindly, verify afterwards
-						for (Hash scope : kScopes)
-						{
-							if (WEAPON::_HAS_PED_GOT_WEAPON_COMPONENT(ped, scope, rifle))
-							{
-								WEAPON::_REMOVE_WEAPON_COMPONENT_FROM_PED(ped, scope, rifle);
-								if (!WEAPON::_HAS_PED_GOT_WEAPON_COMPONENT(ped, scope, rifle))
-									++removed;
-							}
-						}
-
-						// fallback path: strip via the weapon object in hands
-						if (removed == 0)
-						{
-							int weapon_obj = WEAPON::GET_CURRENT_PED_WEAPON_ENTITY_INDEX(ped, 0);
-							if (ENTITY::DOES_ENTITY_EXIST(weapon_obj))
-							{
-								for (Hash scope : kScopes)
-								{
-									if (WEAPON::HAS_WEAPON_GOT_WEAPON_COMPONENT(weapon_obj, scope))
-									{
-										WEAPON::REMOVE_WEAPON_COMPONENT_FROM_WEAPON_OBJECT(weapon_obj, scope);
-										if (!WEAPON::HAS_WEAPON_GOT_WEAPON_COMPONENT(weapon_obj, scope))
-											++removed;
-									}
-								}
-							}
-						}
-
-						// equip the "no scope" component so the rifle keeps iron sights
-						WEAPON::_GIVE_WEAPON_COMPONENT_TO_ENTITY(ped, "COMPONENT_SCOPE_NONE"_J, rifle, true);
-
-						if (removed > 0)
-							report += std::string(kRifleNames[r]) + ": scope removed. ";
-						else if (WEAPON::HAS_PED_GOT_WEAPON(ped, rifle, 0, false))
-							report += std::string(kRifleNames[r]) + ": no scope found. ";
-						else
-							report += std::string(kRifleNames[r]) + ": not owned. ";
-					}
-
-					Notifications::Show("Weapons", report, NotificationType::Info);
-				});
-			}
-			ImGui::TextDisabled("Scopes: needs the rifle owned. M1899 works via Give All too.");
-		}));
-		weapons->AddItem(rareWeaponsGroup);
-
-		weapons->AddItem(std::make_shared<ImGuiItem>([] {
-			ImGui::SeparatorText("Old Deadeye");
-		}));
-		weapons->AddItem(std::make_shared<BoolCommandItem>("olddeadeye"_J));
-		weapons->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("unlockdeadeyeabilities"_J)));
-		weapons->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("enhanceddeadeye"_J)));
-		weapons->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("slowdeadeyedrain"_J)));
-		weapons->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("slipperybastardaccuracy"_J)));
-		weapons->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("momenttorecuperate"_J)));
-		weapons->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("deadeyetagging"_J)));
-		weapons->AddItem(std::make_shared<ConditionalItem>("deadeyetagging"_J, std::make_shared<ImGuiItem>([] {
-			static int current_item_index = 0;
-			const char* items[] = {"Enemies", "Animals", "All"};
-
-			auto command = Commands::GetCommand<IntCommand>("deadeyetaggingconfig"_J);
-			if (!command)
-				return;
-
-			// Note: The IntCommand methods might need to be implemented or accessed differently
-			// For now, we'll use a static variable to track the state
-			static int currentValue = 7; 
-
-			if (currentValue == 6)
-				current_item_index = 0; 
-			else if (currentValue == 8)
-				current_item_index = 1; 
-			else if (currentValue == 7)
-				current_item_index = 2; 
-
-			ImGui::Text("Auto Tag");
-			ImGui::SetNextItemWidth(150.f);
-
-			if (ImGui::Combo("##deadeyetaggingdropdown", &current_item_index, items, IM_ARRAYSIZE(items)))
-			{
-				int newValue = 6; // Default to Enemies
-				if (current_item_index == 0)
-					newValue = 6; // Enemies
-				else if (current_item_index == 1)
-					newValue = 8; // Animals
-				else if (current_item_index == 2)
-					newValue = 7; // All
-
-				currentValue = newValue;
-				// TODO: Set the command value when the proper method is available
-				// FiberPool::Push([=] {
-				//     command->SetValue(newValue);
-				// });
-			}
-		})));
-
-		AddCategory(std::move(weapons));
-
-		auto horse = std::make_shared<Category>("Horse");
-		auto horseGlobalsGroup = std::make_shared<Group>("Globals");
-		horseGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("horsegodmode"_J));
-		horseGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("horsenoragdoll"_J));
-		horseGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("horsesuperrun"_J));
-		horseGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("keephorseclean"_J));
-		horseGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("horseclimbsteepslopes"_J));
-		horseGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("keephorsebarsfilled"_J));
-		horseGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("keephorsecoresfilled"_J));
-		horseGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("keephorseagitationlow"_J));
-		horseGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("flaminghooves"_J));
-		horseGlobalsGroup->AddItem(std::make_shared<CommandItem>("tpmounttoself"_J));
-
-		static float horseScale = 1.0f;
-		horseGlobalsGroup->AddItem(std::make_shared<ImGuiItem>([] {
-			ImGui::Text("Horse Scale");
-			ImGui::SetNextItemWidth(100.0f);
-			if (ImGui::InputFloat("##HorseScale", &horseScale))
-			{
-				FiberPool::Push([] {
-					YimMenu::Self::GetMount().SetScale(horseScale);
-				});
-			}
-		}));
-		horse->AddItem(horseGlobalsGroup);
-		AddCategory(std::move(horse));
-
-		auto companions = std::make_shared<Category>("Companions");
-		companions->AddItem(std::make_shared<ImGuiItem>([] { YimMenu::Submenus::RenderCompanionsCategory(); }));
-		AddCategory(std::move(companions));
-
-		auto vehicle = std::make_shared<Category>("Vehicle");
-		auto vehicleGlobalsGroup = std::make_shared<Group>("Globals");
-		auto vehicleFunGroup = std::make_shared<Group>("Fun");
-		vehicleGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("vehiclegodmode"_J));
-		vehicleGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("vehiclenodetach"_J));
-		vehicleGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("flaminghoovesdraft"_J));
-		vehicleGlobalsGroup->AddItem(std::make_shared<CommandItem>("repairvehicle"_J));
-		vehicleFunGroup->AddItem(std::make_shared<BoolCommandItem>("superdrive"_J));
-		vehicleFunGroup->AddItem(std::make_shared<ConditionalItem>("superdrive"_J, std::make_shared<BoolCommandItem>("superdrivedirectional"_J, "Directional")));
-		vehicleFunGroup->AddItem(std::make_shared<ConditionalItem>("superdrive"_J, std::make_shared<IntCommandItem>("superdriveforce"_J, "Force")));
-		vehicleFunGroup->AddItem(std::make_shared<BoolCommandItem>("superbrake"_J));
-		vehicle->AddItem(vehicleGlobalsGroup);
-		vehicle->AddItem(vehicleFunGroup);
-		AddCategory(std::move(vehicle));
-
-		auto animations = std::make_shared<Category>("Animations");
-		animations->AddItem(std::make_shared<ImGuiItem>([] { YimMenu::Submenus::RenderAnimationsCategory(); }));
-		AddCategory(std::move(animations));
 	}
+
 }

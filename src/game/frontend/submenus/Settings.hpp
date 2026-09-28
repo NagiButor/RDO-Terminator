@@ -1,16 +1,17 @@
 #pragma once
-#include "core/frontend/manager/UIManager.hpp"
-#include "core/commands/ColorCommand.hpp"
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 
 namespace YimMenu::Submenus
 {
-	class Settings : public Submenu
+	// Window geometry persistence for the menu shell. This is intentionally
+	// NOT a submenu anymore: interface sections live in their own submenus
+	// (Visuals, Protection, Interface, About).
+	class Settings
 	{
 	public:
-		Settings();
+		Settings() = default;
 
 		int GetWindowWidth() const;
 		int GetWindowHeight() const;
@@ -28,7 +29,7 @@ namespace YimMenu::Submenus
 		void SaveSettings();
 		void SaveIfWindowChanged(int width, int height, int posX, int posY, bool maximized);
 
-		// test harness override: when set, settings load/save here instead of %appdata%/Mi5hlenMenu
+		// test harness override: when set, settings load/save here instead of %appdata%/RDOTerminator
 		static void SetSettingsFileOverride(const std::string& path);
 		static void ClearSettingsFileOverride();
 
@@ -49,9 +50,4 @@ namespace YimMenu::Submenus
 		void SaveWindowSettings(nlohmann::json& j) const;
 		std::string GetSettingsFilePath() const;
 	};
-
-	void ApplyMenuColors();
-	void ResetToDefaultColors();
-	void DrawColorSettings();
-	void MigrateThemeOnce(); // one-time switch of existing installs to Terminator Red
 }

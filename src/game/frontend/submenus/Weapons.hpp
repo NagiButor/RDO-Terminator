@@ -3,9 +3,9 @@
 
 namespace YimMenu::Submenus
 {
-	class Teleport : public Submenu
+	class Weapons : public Submenu
 	{
 	public:
-		Teleport();
+		Weapons();
 	};
 }
