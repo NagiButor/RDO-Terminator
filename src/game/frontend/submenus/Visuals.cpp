@@ -2,6 +2,7 @@
 
 #include "core/commands/Commands.hpp"
 #include "core/commands/IntCommand.hpp"
+#include "core/commands/ListCommand.hpp"
 #include "game/frontend/items/Items.hpp"
 
 #include <string>
@@ -14,66 +15,134 @@ namespace YimMenu::Submenus
         for (int i = (int)s.size() - 3; i > 0; i -= 3)
             s.insert((size_t)i, " ");
         return s + " m";
-    }    Visuals::Visuals() :
+    }
+
+    // shows `item` only while the master toggle is on
+    static std::shared_ptr<UIItem> When(joaat_t toggle, std::shared_ptr<UIItem> item)
+    {
+        return std::make_shared<ConditionalItem>(toggle, std::move(item));
+    }
+
+    static std::shared_ptr<UIItem> Hint(std::function<void()> draw)
+    {
+        return std::make_shared<ImGuiItem>(std::move(draw));
+    }
+
+    // custom-color swatch, only while "Color By" is set to Custom
+    static std::shared_ptr<UIItem> CustomColorSwatch(joaat_t colorMode, joaat_t color)
+    {
+        auto swatch = std::make_shared<ColorCommandItem>(color);
+        return Hint([colorMode, swatch] {
+            if (auto mode = Commands::GetCommand<ListCommand>(colorMode); mode && mode->GetState() == 2)
+                swatch->Draw();
+        });
+    }
+
+    static std::shared_ptr<Category> BuildPlayerEsp()
+    {
+        constexpr joaat_t on = "espdrawplayers"_J;
+        auto cat = std::make_shared<Category>("Player ESP");
+
+        auto general = std::make_shared<Group>("General");
+        general->AddItem(std::make_shared<BoolCommandItem>(on));
+        general->AddItem(When(on, std::make_shared<BoolCommandItem>("espdrawdeadplayers"_J, "Include Dead")));
+        general->AddItem(When(on, std::make_shared<IntCommandItem>("esprenddistplayers"_J, "Render Distance")));
+        general->AddItem(When(on, Hint([] {
+            if (auto cmd = Commands::GetCommand<IntCommand>("esprenddistplayers"_J))
+                ImGui::TextDisabled("Up to %s  -  Ctrl+Click the slider to type a value", FormatMeters(cmd->GetState()).c_str());
+        })));
+
+        auto info = std::make_shared<Group>("Info");
+        info->AddItem(std::make_shared<BoolCommandItem>("espnameplayers"_J, "Name"));
+        info->AddItem(std::make_shared<ColorCommandItem>("namecolorplayers"_J));
+        info->AddItem(std::make_shared<BoolCommandItem>("esphealthplayers"_J, "Health Bar"));
+        info->AddItem(std::make_shared<BoolCommandItem>("espdistanceplayers"_J, "Distance"));
+        info->AddItem(std::make_shared<ColorCommandItem>("distancecolorplayers"_J));
+
+        auto shape = std::make_shared<Group>("Box & Lines");
+        shape->AddItem(std::make_shared<ListCommandItem>("espboxplayers"_J, "Box Style"));
+        shape->AddItem(std::make_shared<ListCommandItem>("espcolormodeplayers"_J, "Color By"));
+        shape->AddItem(CustomColorSwatch("espcolormodeplayers"_J, "boxcolorplayers"_J));
+        shape->AddItem(std::make_shared<BoolCommandItem>("espsnaplineplayers"_J, "Snapline"));
+        shape->AddItem(std::make_shared<BoolCommandItem>("espskeletonplayers"_J, "Skeleton"));
+        shape->AddItem(std::make_shared<ColorCommandItem>("skeletoncolorplayers"_J));
+
+        cat->AddItem(general);
+        cat->AddItem(When(on, info));
+        cat->AddItem(When(on, shape));
+        return cat;
+    }
+
+    static std::shared_ptr<Category> BuildPedEsp()
+    {
+        constexpr joaat_t on = "espdrawpeds"_J;
+        auto cat = std::make_shared<Category>("Ped ESP");
+
+        auto general = std::make_shared<Group>("General");
+        general->AddItem(std::make_shared<BoolCommandItem>(on));
+        general->AddItem(When(on, std::make_shared<BoolCommandItem>("espdrawdeadpeds"_J, "Include Dead")));
+        general->AddItem(When(on, std::make_shared<BoolCommandItem>("espanimalspeds"_J)));
+        general->AddItem(When(on, std::make_shared<IntCommandItem>("esprenddistpeds"_J, "Render Distance")));
+        general->AddItem(When(on, Hint([] {
+            if (auto cmd = Commands::GetCommand<IntCommand>("esprenddistpeds"_J))
+                ImGui::TextDisabled("Up to %s  -  Ctrl+Click the slider to type a value", FormatMeters(cmd->GetState()).c_str());
+        })));
+
+        auto info = std::make_shared<Group>("Info");
+        info->AddItem(std::make_shared<BoolCommandItem>("espmodelspeds"_J, "Model / Hash"));
+        info->AddItem(std::make_shared<ColorCommandItem>("hashcolorpeds"_J));
+        info->AddItem(std::make_shared<BoolCommandItem>("espnetinfopeds"_J, "Network Owner"));
+        info->AddItem(std::make_shared<BoolCommandItem>("espscriptinfopeds"_J, "Script"));
+        info->AddItem(std::make_shared<BoolCommandItem>("esphealthpeds"_J, "Health Bar"));
+        info->AddItem(std::make_shared<BoolCommandItem>("espdistancepeds"_J, "Distance"));
+        info->AddItem(std::make_shared<ColorCommandItem>("distancecolorpeds"_J));
+
+        auto shape = std::make_shared<Group>("Box & Lines");
+        shape->AddItem(std::make_shared<ListCommandItem>("espboxpeds"_J, "Box Style"));
+        shape->AddItem(std::make_shared<ListCommandItem>("espcolormodepeds"_J, "Color By"));
+        shape->AddItem(CustomColorSwatch("espcolormodepeds"_J, "boxcolorpeds"_J));
+        shape->AddItem(std::make_shared<BoolCommandItem>("espsnaplinepeds"_J, "Snapline"));
+        shape->AddItem(std::make_shared<BoolCommandItem>("espskeletonpeds"_J, "Skeleton"));
+        shape->AddItem(std::make_shared<ColorCommandItem>("skeletoncolorpeds"_J));
+        shape->AddItem(std::make_shared<BoolCommandItem>("espskeletonhorse"_J, "Horse Skeleton"));
+        shape->AddItem(std::make_shared<ColorCommandItem>("skeletoncolorhorse"_J));
+
+        cat->AddItem(general);
+        cat->AddItem(When(on, info));
+        cat->AddItem(When(on, shape));
+        return cat;
+    }
+
+    static std::shared_ptr<Category> BuildEspStyle()
+    {
+        auto cat = std::make_shared<Category>("ESP Style");
+
+        auto look = std::make_shared<Group>("Look");
+        look->AddItem(std::make_shared<BoolCommandItem>("espoutline"_J));
+        look->AddItem(std::make_shared<BoolCommandItem>("esptagbg"_J));
+        look->AddItem(std::make_shared<ListCommandItem>("espfontstyle"_J));
+        look->AddItem(std::make_shared<BoolCommandItem>("espskeletonhead"_J));
+
+        auto behavior = std::make_shared<Group>("Behavior");
+        behavior->AddItem(std::make_shared<BoolCommandItem>("espdistancefade"_J));
+        behavior->AddItem(std::make_shared<BoolCommandItem>("espvisibilitycheck"_J));
+        behavior->AddItem(Hint([] {
+            ImGui::TextDisabled("Targets without line of sight are drawn dimmed.");
+        }));
+        behavior->AddItem(std::make_shared<ListCommandItem>("espsnaporigin"_J));
+
+        cat->AddItem(look);
+        cat->AddItem(behavior);
+        return cat;
+    }
+
+    Visuals::Visuals() :
         Submenu::Submenu("Visuals")
     {
-        auto esp     = std::make_shared<Category>("ESP");
         auto overlay = std::make_shared<Category>("Overlay");
 
-        auto playerEsp = std::make_shared<Group>("Player ESP", 10);
-        auto pedEsp    = std::make_shared<Group>("Ped ESP", 10);
         auto overlayGroup = std::make_shared<Group>("Overlay");
-        auto context   = std::make_shared<Group>("Context Menu");
-
-        esp->AddItem(std::make_shared<ImGuiItem>([] {
-            ImGui::TextDisabled("Outlines, boxes, bars and tags drawn over actors in the world.");
-        }));
-        playerEsp->AddItem(std::make_shared<BoolCommandItem>("espdrawplayers"_J));
-        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<BoolCommandItem>("espdrawdeadplayers"_J)));
-
-        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<BoolCommandItem>("espnameplayers"_J, "Player Name")));
-        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<ColorCommandItem>("namecolorplayers"_J)));
-        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<BoolCommandItem>("esphealthplayers"_J, "Player Health")));
-
-        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<BoolCommandItem>("espdistanceplayers"_J, "Player Distance")));
-        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<ColorCommandItem>("distancecolorplayers"_J)));
-
-        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<BoolCommandItem>("espskeletonplayers"_J, "Player Skeleton")));
-        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<ColorCommandItem>("skeletoncolorplayers"_J)));
-
-        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<ListCommandItem>("espboxplayers"_J, "Box Style")));
-        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<BoolCommandItem>("espsnaplineplayers"_J, "Snapline")));
-        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<IntCommandItem>("esprenddistplayers"_J, "Render Distance")));
-        playerEsp->AddItem(std::make_shared<ConditionalItem>("espdrawplayers"_J, std::make_shared<ImGuiItem>([] {
-            if (auto cmd = Commands::GetCommand<IntCommand>("esprenddistplayers"_J))
-                ImGui::TextDisabled("Draws players up to %s (Ctrl+Click the slider for an exact value)", FormatMeters(cmd->GetState()).c_str());
-        })));
-
-        pedEsp->AddItem(std::make_shared<BoolCommandItem>("espdrawpeds"_J));
-        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<BoolCommandItem>("espdrawdeadpeds"_J)));
-
-        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<BoolCommandItem>("espmodelspeds"_J, "Ped Hashes")));
-        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<ColorCommandItem>("hashcolorpeds"_J)));
-
-        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<BoolCommandItem>("espnetinfopeds"_J, "Ped Net Info")));
-        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<BoolCommandItem>("espscriptinfopeds"_J, "Ped Script Info")));
-
-        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<BoolCommandItem>("espdistancepeds"_J, "Ped Distance")));
-        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<ColorCommandItem>("distancecolorpeds"_J)));
-
-        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<BoolCommandItem>("espskeletonpeds"_J, "Ped Skeleton")));
-        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<ColorCommandItem>("skeletoncolorpeds"_J)));
-
-        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<BoolCommandItem>("espskeletonhorse"_J, "Horse Skeleton")));
-        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<ColorCommandItem>("skeletoncolorhorse"_J)));
-
-        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<ListCommandItem>("espboxpeds"_J, "Box Style")));
-        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<BoolCommandItem>("espsnaplinepeds"_J, "Snapline")));
-        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<IntCommandItem>("esprenddistpeds"_J, "Render Distance")));
-        pedEsp->AddItem(std::make_shared<ConditionalItem>("espdrawpeds"_J, std::make_shared<ImGuiItem>([] {
-            if (auto cmd = Commands::GetCommand<IntCommand>("esprenddistpeds"_J))
-                ImGui::TextDisabled("Draws peds up to %s (Ctrl+Click the slider for an exact value)", FormatMeters(cmd->GetState()).c_str());
-        })));
+        auto context      = std::make_shared<Group>("Context Menu");
 
         overlayGroup->AddItem(std::make_shared<BoolCommandItem>("overlay"_J));
         overlayGroup->AddItem(std::make_shared<ConditionalItem>("overlay"_J, std::make_shared<BoolCommandItem>("overlayfps"_J)));
@@ -84,12 +153,12 @@ namespace YimMenu::Submenus
         context->AddItem(std::make_shared<ConditionalItem>("ctxmenu"_J, std::make_shared<BoolCommandItem>("ctxmenuvehicles"_J, "Vehicles")));
         context->AddItem(std::make_shared<ConditionalItem>("ctxmenu"_J, std::make_shared<BoolCommandItem>("ctxmenuobjects"_J, "Objects")));
 
-        esp->AddItem(playerEsp);
-        esp->AddItem(pedEsp);
         overlay->AddItem(overlayGroup);
         overlay->AddItem(context);
 
-        AddCategory(std::move(esp));
+        AddCategory(BuildPlayerEsp());
+        AddCategory(BuildPedEsp());
+        AddCategory(BuildEspStyle());
         AddCategory(std::move(overlay));
     }
 }

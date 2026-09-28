@@ -47,6 +47,7 @@ namespace YimMenu
 		void AddSubmenuImpl(const std::shared_ptr<Submenu>&& submenu);
 		void SetActiveSubmenuImpl(const std::shared_ptr<Submenu> submenu);
 		void DrawImpl();
+		void DrawSidebar(float width);
 		std::shared_ptr<Submenu> GetActiveSubmenuImpl();
 		std::shared_ptr<Category> GetActiveCategoryImpl();
 

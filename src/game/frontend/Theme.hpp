@@ -1,114 +1,88 @@
-// RDO Terminator signature theme: the single, hardcoded visual identity.
-// No theme switcher exists by design: one product, one look.
-// Dark blue-charcoal surfaces, one signal-red accent, warm off-white text.
+// Signature theme + custom widgets for the menu shell.
+//
+// Everything visual goes through this file: the palette, the ImGui style, and
+// the handful of drawn widgets (switch, stepper, card, tab, sidebar entry,
+// vector icons, neon frame). Nothing here knows about the game, so the whole
+// look can be reused for another product by editing the palette below and the
+// strings in Branding.hpp.
 #pragma once
 
 #include "imgui.h"
 
+#include <string_view>
+#include <utility>
+#include <vector>
+
 namespace YimMenu::Theme
 {
-	inline ImVec4 Accent()        { return ImVec4(0.90f, 0.16f, 0.19f, 1.f); }
-	inline ImVec4 AccentBright()  { return ImVec4(1.00f, 0.30f, 0.32f, 1.f); }
-	inline ImVec4 AccentDim()     { return ImVec4(0.45f, 0.11f, 0.12f, 1.f); }
-	inline ImVec4 OkGreen()       { return ImVec4(0.30f, 0.75f, 0.35f, 1.f); }
-	inline ImVec4 MutedText()     { return ImVec4(0.55f, 0.56f, 0.59f, 1.f); }
+	// ---- palette -----------------------------------------------------------
+	inline ImVec4 Accent()       { return ImVec4(0.92f, 0.10f, 0.13f, 1.f); }
+	inline ImVec4 AccentBright() { return ImVec4(1.00f, 0.27f, 0.29f, 1.f); }
+	inline ImVec4 AccentDim()    { return ImVec4(0.42f, 0.06f, 0.08f, 1.f); }
+	inline ImVec4 OkGreen()      { return ImVec4(0.30f, 0.80f, 0.40f, 1.f); }
+	inline ImVec4 Text()         { return ImVec4(0.93f, 0.93f, 0.95f, 1.f); }
+	inline ImVec4 MutedText()    { return ImVec4(0.56f, 0.58f, 0.63f, 1.f); }
+	inline ImVec4 WindowBg()     { return ImVec4(0.031f, 0.035f, 0.047f, 0.97f); }
+	inline ImVec4 PanelBg()      { return ImVec4(0.047f, 0.055f, 0.071f, 1.f); }
+	inline ImVec4 CardBg()       { return ImVec4(0.055f, 0.063f, 0.082f, 1.f); }
+	inline ImVec4 ControlBg()    { return ImVec4(0.110f, 0.122f, 0.149f, 1.f); }
 
-	inline void ApplySignatureTheme()
+	// ImVec4 -> ImU32 with an extra alpha multiplier
+	inline ImU32 Col(const ImVec4& c, float alpha = 1.f)
 	{
-		ImGuiStyle& style = ImGui::GetStyle();
-		ImVec4* colors    = style.Colors;
-
-		// single spacing grid for the whole product
-		style.WindowPadding    = ImVec2(10.f, 8.f);
-		style.FramePadding     = ImVec2(8.f, 5.f);
-		style.CellPadding      = ImVec2(6.f, 3.f);
-		style.ItemSpacing      = ImVec2(8.f, 6.f);
-		style.ItemInnerSpacing = ImVec2(6.f, 4.f);
-		style.ScrollbarSize    = 13.f;
-		style.GrabMinSize      = 12.f;
-
-		style.WindowRounding    = 8.f;
-		style.ChildRounding     = 6.f;
-		style.FrameRounding     = 6.f;
-		style.PopupRounding     = 6.f;
-		style.ScrollbarRounding = 6.f;
-		style.GrabRounding      = 6.f;
-		style.TabRounding       = 4.f;
-		style.WindowBorderSize  = 1.f;
-		style.ChildBorderSize   = 1.f;
-		style.FrameBorderSize   = 0.f;
-		style.PopupBorderSize   = 1.f;
-
-		colors[ImGuiCol_Text]                  = ImVec4(0.93f, 0.91f, 0.87f, 1.00f);
-		colors[ImGuiCol_TextDisabled]          = ImVec4(0.47f, 0.47f, 0.50f, 1.00f);
-		colors[ImGuiCol_WindowBg]              = ImVec4(0.043f, 0.051f, 0.070f, 1.00f);
-		colors[ImGuiCol_ChildBg]               = ImVec4(0.063f, 0.078f, 0.106f, 1.00f);
-		colors[ImGuiCol_PopupBg]               = ImVec4(0.075f, 0.094f, 0.129f, 0.98f);
-		colors[ImGuiCol_Border]                = ImVec4(0.28f, 0.11f, 0.12f, 0.55f);
-		colors[ImGuiCol_BorderShadow]          = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-		colors[ImGuiCol_FrameBg]               = ImVec4(0.094f, 0.118f, 0.157f, 1.00f);
-		colors[ImGuiCol_FrameBgHovered]        = ImVec4(0.35f, 0.11f, 0.12f, 1.00f);
-		colors[ImGuiCol_FrameBgActive]         = ImVec4(0.55f, 0.13f, 0.14f, 1.00f);
-		colors[ImGuiCol_TitleBg]               = ImVec4(0.043f, 0.051f, 0.070f, 1.00f);
-		colors[ImGuiCol_TitleBgActive]         = ImVec4(0.060f, 0.070f, 0.095f, 1.00f);
-		colors[ImGuiCol_TitleBgCollapsed]      = ImVec4(0.043f, 0.051f, 0.070f, 1.00f);
-		colors[ImGuiCol_MenuBarBg]             = ImVec4(0.060f, 0.070f, 0.095f, 1.00f);
-		colors[ImGuiCol_ScrollbarBg]           = ImVec4(0.040f, 0.050f, 0.070f, 1.00f);
-		colors[ImGuiCol_ScrollbarGrab]         = ImVec4(0.22f, 0.25f, 0.31f, 1.00f);
-		colors[ImGuiCol_ScrollbarGrabHovered]  = ImVec4(0.35f, 0.15f, 0.16f, 1.00f);
-		colors[ImGuiCol_ScrollbarGrabActive]   = ImVec4(0.55f, 0.15f, 0.16f, 1.00f);
-		colors[ImGuiCol_CheckMark]             = ImVec4(0.95f, 0.28f, 0.30f, 1.00f);
-		colors[ImGuiCol_SliderGrab]            = ImVec4(0.85f, 0.18f, 0.20f, 1.00f);
-		colors[ImGuiCol_SliderGrabActive]      = ImVec4(1.00f, 0.30f, 0.32f, 1.00f);
-		colors[ImGuiCol_Button]                = ImVec4(0.12f, 0.15f, 0.20f, 1.00f);
-		colors[ImGuiCol_ButtonHovered]         = ImVec4(0.62f, 0.15f, 0.16f, 1.00f);
-		colors[ImGuiCol_ButtonActive]          = ImVec4(0.80f, 0.18f, 0.20f, 1.00f);
-		colors[ImGuiCol_Header]                = ImVec4(0.094f, 0.118f, 0.157f, 1.00f);
-		colors[ImGuiCol_HeaderHovered]         = ImVec4(0.30f, 0.11f, 0.12f, 1.00f);
-		colors[ImGuiCol_HeaderActive]          = ImVec4(0.55f, 0.13f, 0.14f, 1.00f);
-		colors[ImGuiCol_Separator]             = ImVec4(0.30f, 0.13f, 0.14f, 0.55f);
-		colors[ImGuiCol_SeparatorHovered]      = ImVec4(0.55f, 0.15f, 0.16f, 1.00f);
-		colors[ImGuiCol_SeparatorActive]       = ImVec4(0.80f, 0.18f, 0.20f, 1.00f);
-		colors[ImGuiCol_ResizeGrip]            = ImVec4(0.35f, 0.15f, 0.16f, 0.6f);
-		colors[ImGuiCol_ResizeGripHovered]     = ImVec4(0.62f, 0.15f, 0.16f, 1.00f);
-		colors[ImGuiCol_ResizeGripActive]      = ImVec4(0.85f, 0.18f, 0.20f, 1.00f);
-		colors[ImGuiCol_Tab]                   = ImVec4(0.094f, 0.118f, 0.157f, 1.00f);
-		colors[ImGuiCol_TabHovered]            = ImVec4(0.35f, 0.15f, 0.16f, 1.00f);
-		colors[ImGuiCol_TabActive]             = ImVec4(0.45f, 0.12f, 0.13f, 1.00f);
-		colors[ImGuiCol_TabUnfocused]          = ImVec4(0.070f, 0.085f, 0.115f, 1.00f);
-		colors[ImGuiCol_TabUnfocusedActive]    = ImVec4(0.13f, 0.16f, 0.21f, 1.00f);
-		colors[ImGuiCol_PlotLines]             = ImVec4(0.85f, 0.25f, 0.28f, 1.00f);
-		colors[ImGuiCol_PlotLinesHovered]      = ImVec4(1.00f, 0.35f, 0.37f, 1.00f);
-		colors[ImGuiCol_PlotHistogram]         = ImVec4(0.75f, 0.20f, 0.22f, 1.00f);
-		colors[ImGuiCol_PlotHistogramHovered]  = ImVec4(0.90f, 0.28f, 0.30f, 1.00f);
-		colors[ImGuiCol_TableHeaderBg]         = ImVec4(0.10f, 0.12f, 0.16f, 1.00f);
-		colors[ImGuiCol_TableBorderStrong]     = ImVec4(0.28f, 0.11f, 0.12f, 0.55f);
-		colors[ImGuiCol_TableBorderLight]      = ImVec4(0.16f, 0.18f, 0.23f, 1.00f);
-		colors[ImGuiCol_TableRowBg]            = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-		colors[ImGuiCol_TableRowBgAlt]         = ImVec4(1.00f, 1.00f, 1.00f, 0.03f);
-		colors[ImGuiCol_TextSelectedBg]        = ImVec4(0.55f, 0.13f, 0.14f, 0.55f);
-		colors[ImGuiCol_DragDropTarget]        = ImVec4(0.90f, 0.20f, 0.22f, 0.90f);
-		colors[ImGuiCol_NavHighlight]          = ImVec4(0.90f, 0.20f, 0.22f, 0.80f);
-		colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
-		colors[ImGuiCol_NavWindowingDimBg]     = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
-		colors[ImGuiCol_ModalWindowDimBg]      = ImVec4(0.02f, 0.02f, 0.03f, 0.65f);
+		return ImGui::ColorConvertFloat4ToU32(ImVec4(c.x, c.y, c.z, c.w * alpha));
 	}
 
-	// Page/section header: accent mark + title + optional one-line description.
-	// This is the single hierarchy primitive for every screen in the product.
-	inline void DrawSectionTitle(const char* title, const char* desc = nullptr)
-	{
-		ImGui::PushStyleColor(ImGuiCol_Text, Accent());
-		ImGui::TextUnformatted("//");
-		ImGui::PopStyleColor();
-		ImGui::SameLine(0.f, 6.f);
-		ImGui::TextUnformatted(title);
-		if (desc)
-		{
-			ImGui::SameLine(0.f, 8.f);
-			ImGui::PushStyleColor(ImGuiCol_Text, MutedText());
-			ImGui::TextUnformatted(desc);
-			ImGui::PopStyleColor();
-		}
-	}
+	void ApplySignatureTheme();
+
+	// ---- fonts (set by Menu::SetupFonts; fall back to the current font) ----
+	inline ImFont* g_TitleFont   = nullptr; // big header title
+	inline ImFont* g_HeadingFont = nullptr; // tabs, card titles, sidebar
+	inline ImFont* g_SmallFont   = nullptr; // captions, status line
+
+	// ---- drawing primitives -----------------------------------------------
+	// Vector icons, drawn with the draw list so no icon font is needed.
+	// Known names: gear user users eye crosshair shield globe wheel coin info
+	// bug monitor network layers keyboard emblem dot
+	void DrawIcon(ImDrawList* dl, std::string_view icon, ImVec2 center, float size, ImU32 col);
+	// Best-effort icon for a submenu/category/group name ("Player ESP" -> user).
+	// Returns "" when nothing matches.
+	std::string_view IconForName(std::string_view name);
+
+	// Chamfered (cut-corner) outline with a soft outer glow.
+	void DrawNeonFrame(ImDrawList* dl, ImVec2 min, ImVec2 max, float cut, ImU32 col, float glow = 1.f);
+	void FillChamfered(ImDrawList* dl, ImVec2 min, ImVec2 max, float cut, ImU32 col);
+	// The red "//" mark used in front of section titles.
+	void DrawSlashes(ImDrawList* dl, ImVec2 pos, float height, ImU32 col);
+	// Text with extra spacing between letters (for small caps captions).
+	void DrawSpacedText(ImDrawList* dl, ImVec2 pos, ImU32 col, const char* text, float spacing, ImFont* font = nullptr, float fontSize = 0.f);
+	float CalcSpacedTextWidth(const char* text, float spacing, ImFont* font = nullptr, float fontSize = 0.f);
+
+	// ---- widgets -----------------------------------------------------------
+	// Animated on/off switch with a label on the right. Returns true on toggle.
+	bool Switch(const char* label, bool* v);
+	// "Label   [ <  Value  > ]" selector. Arrows cycle, the middle opens a list.
+	bool Stepper(const char* label, const std::vector<std::pair<int, const char*>>& list, int* value);
+	// Moves the cursor onto the current line at the shared value column
+	// (color swatches, steppers). Call right after the row's first item.
+	void SameLineValueColumn();
+	// Small square color swatch with a picker popup. Returns true on change.
+	bool ColorSwatch(const char* id, float* rgba);
+
+	// Full-width panel with a "// icon Title" header; auto-sizes to its content.
+	// Always pair with EndCard(), regardless of the return value.
+	bool BeginCard(const char* title, const void* id = nullptr);
+	void EndCard();
+
+	// Left rail entry. Returns true when clicked.
+	bool SidebarEntry(const char* label, std::string_view icon, bool active, float height);
+	// Top tab. Returns true when clicked.
+	bool TabButton(const char* label, std::string_view icon, bool active);
+	// Square header button (close / minimize). Returns true when clicked.
+	bool HeaderButton(const char* id, std::string_view glyph, ImVec2 size, bool danger);
+	// Outlined pill for header actions; filled when active.
+	bool Chip(const char* label, bool active);
+
+	// Legacy one-line header, kept for callers outside the shell.
+	void DrawSectionTitle(const char* title, const char* desc = nullptr);
 }

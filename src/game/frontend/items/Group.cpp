@@ -1,8 +1,7 @@
 #include "Items.hpp"
-#include "core/commands/Command.hpp"
-#include "core/commands/Commands.hpp"
-#include "game/backend/FiberPool.hpp"
-#include "game/frontend/Menu.hpp"
+#include "game/frontend/Theme.hpp"
+
+#include <algorithm>
 
 namespace YimMenu
 {
@@ -14,30 +13,55 @@ namespace YimMenu
 
 	void Group::Draw()
 	{
-		if (!m_Name.empty())
-		{
-			ImGui::PushFont(Menu::Font::g_ChildTitleFont);
-			ImGui::Text(m_Name.c_str());
-			ImGui::PopFont();
-			ImGui::Separator();
-			ImGui::Spacing();
-		}
+		// m_ItemsPerRow is "rows per column": after that many visible rows the
+		// group continues in the next column. Only visible, non-inline items
+		// count, so hidden conditional options no longer skew the columns.
+		int rows = 0;
+		for (auto& item : m_Items)
+			if (item->IsVisible() && !item->IsInline())
+				rows++;
 
-		int item_count = 0;
+		const int perColumn = m_ItemsPerRow > 0 ? m_ItemsPerRow : std::max(rows, 1);
+		const int columns   = std::clamp((rows + perColumn - 1) / perColumn, 1, 4);
 
-		ImGui::BeginGroup();
+		const bool named = !m_Name.empty();
+		if (named)
+			Theme::BeginCard(m_Name.c_str(), this);
+		else
+			ImGui::PushID(this);
+
+		const bool table = columns > 1 && ImGui::BeginTable("##columns", columns, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchSame);
+		if (table)
+			ImGui::TableNextColumn();
+		else
+			ImGui::BeginGroup();
+
+		int rowInColumn = 0;
 		for (auto& item : m_Items)
 		{
-			item->Draw();
-			item_count++;
+			if (!item->IsVisible())
+				continue;
 
-			if (m_ItemsPerRow != -1 && item_count % m_ItemsPerRow == 0)
+			if (!item->IsInline())
 			{
-				ImGui::EndGroup();
-				ImGui::SameLine();
-				ImGui::BeginGroup();
+				if (table && rowInColumn == perColumn)
+				{
+					ImGui::TableNextColumn();
+					rowInColumn = 0;
+				}
+				rowInColumn++;
 			}
+			item->Draw();
 		}
-		ImGui::EndGroup();
+
+		if (table)
+			ImGui::EndTable();
+		else
+			ImGui::EndGroup();
+
+		if (named)
+			Theme::EndCard();
+		else
+			ImGui::PopID();
 	}
 }

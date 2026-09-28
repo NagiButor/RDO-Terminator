@@ -19,10 +19,12 @@ set(VISUAL_TEST_SOURCES
     # shared, game-independent production code
     # (RdrEspWorld.cpp stays DLL-only: it binds ESP to live game objects)
     "${SRC_DIR}/game/frontend/MenuShell.cpp"
+    "${SRC_DIR}/game/frontend/Theme.cpp"
     "${SRC_DIR}/game/frontend/ESP.cpp"
     "${SRC_DIR}/game/frontend/fonts/MainFont.cpp"
     "${SRC_DIR}/game/frontend/submenus/Settings.cpp"
     "${SRC_DIR}/game/frontend/submenus/Visuals.cpp"
+    "${SRC_DIR}/game/frontend/submenus/Interface.cpp"
     "${SRC_DIR}/game/frontend/items/BoolCommandItem.cpp"
     "${SRC_DIR}/game/frontend/items/Button.cpp"
     "${SRC_DIR}/game/frontend/items/ColorCommandItem.cpp"
@@ -93,6 +95,9 @@ target_link_libraries(MenuVisualTest PRIVATE
 )
 
 add_compile_definitions("_CRT_SECURE_NO_WARNINGS" "NOMINMAX" "WIN32_LEAN_AND_MEAN")
+
+# same header logo as the DLL (embedded there as a resource)
+target_compile_definitions(MenuVisualTest PRIVATE RDO_LOGO_PATH=L"${SRC_DIR}/game/frontend/resources/terminator.png")
 
 # land next to the cheat DLL so both exes live side by side
 set_target_properties(MenuVisualTest PROPERTIES

@@ -18,6 +18,65 @@
 
 namespace YimMenu::Submenus
 {
+    struct TownLocation
+    {
+        const char* name;
+        float x, y, z;
+    };
+
+    // approximate town centres; the teleport probes for the real ground height
+    static constexpr TownLocation g_Towns[] = {
+        {"Valentine", -281.f, 791.f, 118.f},
+        {"Saint Denis", 2580.f, -1225.f, 53.f},
+        {"Rhodes", 1300.f, -1290.f, 76.f},
+        {"Blackwater", -800.f, -1300.f, 43.f},
+        {"Strawberry", -1780.f, -390.f, 160.f},
+        {"Annesburg", 2930.f, 1320.f, 44.f},
+        {"Van Horn", 2960.f, 540.f, 44.f},
+        {"Emerald Ranch", 1420.f, 310.f, 88.f},
+        {"Lagras", 2110.f, -590.f, 42.f},
+        {"Armadillo", -3660.f, -2600.f, -13.f},
+        {"Tumbleweed", -5500.f, -2950.f, -2.f},
+        {"Colter", -1350.f, 2400.f, 307.f},
+        {"Wapiti", 460.f, 2240.f, 248.f},
+    };
+
+    static constexpr TownLocation g_Places[] = {
+        {"Thieves' Landing", -1420.f, -2310.f, 43.f},
+        {"Manzanita Post", -1960.f, -1610.f, 115.f},
+        {"MacFarlane's Ranch", -2400.f, -2400.f, 61.f},
+        {"Benedict Point", -5230.f, -3450.f, -20.f},
+        {"Fort Wallace", 340.f, 1470.f, 180.f},
+        {"Butcher Creek", 2550.f, 800.f, 76.f},
+        {"Sisika Penitentiary", 3340.f, -660.f, 45.f},
+    };
+
+    // Nuevo Paraiso lies south of the Rio Bravo; in Online it is unfinished, low-detail terrain
+    static constexpr TownLocation g_Mexico[] = {
+        {"Mexico - Rio Bravo crossing", -4500.f, -3700.f, 10.f},
+        {"Mexico - Nuevo Paraiso", -5000.f, -4200.f, 20.f},
+        {"Mexico - Deep South", -4000.f, -4800.f, 20.f},
+    };
+
+    template<std::size_t N>
+    static std::shared_ptr<Group> BuildLocationGroup(const char* title, const TownLocation (&list)[N])
+    {
+        auto group = std::make_shared<Group>(title);
+        group->AddItem(std::make_shared<ImGuiItem>([&list] {
+            for (const auto& loc : list)
+            {
+                if (ImGui::Button(loc.name, ImVec2(-1, 0)))
+                {
+                    const rage::fvector3 coords{loc.x, loc.y, loc.z};
+                    FiberPool::Push([coords] {
+                        YimMenu::Teleport::TeleportEntity(Self::GetPed().GetHandle(), coords, true);
+                    });
+                }
+            }
+        }));
+        return group;
+    }
+
     static float GetDistanceFromLocation(const SavedLocation& t)
     {
         return rage::fvector3(t.x, t.y, t.z).GetDistance(Self::GetPed().GetPosition());
@@ -271,6 +330,9 @@ namespace YimMenu::Submenus
         }));
 
         teleport->AddItem(teleportMiscGroup);
+        teleport->AddItem(BuildLocationGroup("Towns", g_Towns));
+        teleport->AddItem(BuildLocationGroup("Places", g_Places));
+        teleport->AddItem(BuildLocationGroup("Mexico", g_Mexico));
         AddCategory(std::move(teleport));
 
         auto customteleport = std::make_shared<Category>("Saved");

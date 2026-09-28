@@ -219,15 +219,15 @@ namespace YimMenu
 			if (Features::_ESPModelPeds.GetState())
 			{
 				if (auto it = Data::g_PedModels.find(m_Ped.GetModel()); it != Data::g_PedModels.end())
-					info += std::format("{} (0x{:08X}) ", it->second, static_cast<joaat_t>(m_Ped.GetModel())); // Show both name and hash
+					info += std::format("{} (0x{:08X})\n", it->second, static_cast<joaat_t>(m_Ped.GetModel())); // Show both name and hash
 				else
-					info += std::format("0x{:08X} ", static_cast<joaat_t>(m_Ped.GetModel())); // Show only hash if name not found
+					info += std::format("0x{:08X}\n", static_cast<joaat_t>(m_Ped.GetModel())); // Show only hash if name not found
 			}
 			if (Features::_ESPNetworkInfoPeds.GetState() && m_Ped.IsNetworked())
 			{
 				auto owner = Player(m_Ped.GetOwner());
 				auto id    = m_Ped.GetNetworkObjectId();
-				info += std::format("{} {} ", id, owner.GetName());
+				info += std::format("net {} | {}\n", id, owner.GetName());
 			}
 			if (Features::_ESPScriptInfoPeds.GetState())
 			{
@@ -235,7 +235,7 @@ namespace YimMenu
 				{
 					if (auto name = Scripts::GetScriptName(script))
 					{
-						info += std::format("{} ", name);
+						info += std::format("{}\n", name);
 					}
 				}
 			}

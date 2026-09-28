@@ -21,6 +21,7 @@ namespace YimMenu::Submenus
         weaponsGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("nospread"_J));
         weaponsGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("autocock"_J));
         weaponsGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("keepgunsclean"_J));
+        weaponsGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("hidecrosshair"_J));
 
         weaponsGlobalsGroup->AddItem(std::make_shared<ImGuiItem>([] {
             if (ImGui::Button("Give All Weapons"))
@@ -63,80 +64,9 @@ namespace YimMenu::Submenus
 
             ImGui::Separator();
 
-            if (ImGui::Button("Remove sniper scopes (iron sights)", ImVec2(-1, 0)))
-            {
-                FiberPool::Push([] {
-                    const int ped = YimMenu::Self::GetPed().GetHandle();
-                    if (!ENTITY::DOES_ENTITY_EXIST(ped))
-                        return;
-
-                    // scope components sold for these rifles (see catalog_sp.ymt):
-                    // COMPONENT_RIFLE_SCOPE02/03/04, COMPONENT_SCOPE_NONE = iron sights
-                    static constexpr Hash kRifles[] = {
-                        "WEAPON_SNIPERRIFLE_CARCANO"_J,
-                        "WEAPON_SNIPERRIFLE_ROLLINGBLOCK"_J,
-                    };
-                    static constexpr const char* kRifleNames[] = {
-                        "Carcano",
-                        "Rolling Block",
-                    };
-                    static constexpr Hash kScopes[] = {
-                        "COMPONENT_RIFLE_SCOPE02"_J,
-                        "COMPONENT_RIFLE_SCOPE03"_J,
-                        "COMPONENT_RIFLE_SCOPE04"_J,
-                    };
-
-                    std::string report;
-                    for (std::size_t r = 0; r < 2; ++r)
-                    {
-                        const Hash rifle = kRifles[r];
-                        int removed      = 0;
-
-                        // no ownership gate: attempt removal blindly, verify afterwards
-                        for (Hash scope : kScopes)
-                        {
-                            if (WEAPON::_HAS_PED_GOT_WEAPON_COMPONENT(ped, scope, rifle))
-                            {
-                                WEAPON::_REMOVE_WEAPON_COMPONENT_FROM_PED(ped, scope, rifle);
-                                if (!WEAPON::_HAS_PED_GOT_WEAPON_COMPONENT(ped, scope, rifle))
-                                    ++removed;
-                            }
-                        }
-
-                        // fallback path: strip via the weapon object in hands
-                        if (removed == 0)
-                        {
-                            int weapon_obj = WEAPON::GET_CURRENT_PED_WEAPON_ENTITY_INDEX(ped, 0);
-                            if (ENTITY::DOES_ENTITY_EXIST(weapon_obj))
-                            {
-                                for (Hash scope : kScopes)
-                                {
-                                    if (WEAPON::HAS_WEAPON_GOT_WEAPON_COMPONENT(weapon_obj, scope))
-                                    {
-                                        WEAPON::REMOVE_WEAPON_COMPONENT_FROM_WEAPON_OBJECT(weapon_obj, scope);
-                                        if (!WEAPON::HAS_WEAPON_GOT_WEAPON_COMPONENT(weapon_obj, scope))
-                                            ++removed;
-                                    }
-                                }
-                            }
-                        }
-
-                        // equip the "no scope" component so the rifle keeps iron sights
-                        WEAPON::_GIVE_WEAPON_COMPONENT_TO_ENTITY(ped, "COMPONENT_SCOPE_NONE"_J, rifle, true);
-
-                        if (removed > 0)
-                            report += std::string(kRifleNames[r]) + ": scope removed. ";
-                        else if (WEAPON::HAS_PED_GOT_WEAPON(ped, rifle, 0, false))
-                            report += std::string(kRifleNames[r]) + ": no scope found. ";
-                        else
-                            report += std::string(kRifleNames[r]) + ": not owned. ";
-                    }
-
-                    Notifications::Show("Weapons", report, NotificationType::Info);
-                });
-            }
-            ImGui::TextDisabled("Scopes: needs the rifle owned. M1899 works via Give All too.");
+            ImGui::TextDisabled("M1899 works via Give All too.");
         }));
+        rareWeaponsGroup->AddItem(std::make_shared<BoolCommandItem>("nosniperscope"_J));
         weapons->AddItem(rareWeaponsGroup);
 
         weapons->AddItem(std::make_shared<ImGuiItem>([] {

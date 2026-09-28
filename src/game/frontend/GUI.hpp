@@ -31,6 +31,17 @@ namespace YimMenu
 			GetInstance().m_IsOpen ^= true;
 		}
 
+		// Opens/closes the menu and keeps the mouse capture in sync
+		// (used by the header close button).
+		static void SetOpen(bool open)
+		{
+			if (GetInstance().m_IsOpen != open)
+			{
+				Toggle();
+				ToggleMouse();
+			}
+		}
+
 		static bool IsUsingKeyboard()
 		{
 			return ImGui::GetIO().WantTextInput;

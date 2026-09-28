@@ -2,7 +2,7 @@
 #include "core/commands/ColorCommand.hpp"
 #include "core/commands/Command.hpp"
 #include "core/commands/Commands.hpp"
-#include "core/frontend/widgets/toggle/imgui_toggle.hpp"
+#include "game/frontend/Theme.hpp"
 
 namespace YimMenu
 {
@@ -16,28 +16,18 @@ namespace YimMenu
 	{
 		if (!m_Command)
 		{
-			ImGui::Text("Unknown color picker!");
+			ImGui::TextDisabled("Unknown color picker!");
 			return;
 		}
 
+		// swatch sits on the row of the toggle it belongs to, in the shared value column
+		Theme::SameLineValueColumn();
+
 		auto color = m_Command->GetState();
-		auto label = m_LabelOverride.has_value() ? m_LabelOverride.value().c_str() : m_Command->GetLabel().c_str();
-
-		ImGui::SameLine();
-
-		ImGui::SetNextItemWidth(150);
-		if (ImGui::ColorButton(label, color))
-		{
-			ImGui::OpenPopup(label);
-		}
-
-		if (ImGui::BeginPopup(label))
-		{
-			if (ImGui::ColorPicker4("##picker", (float*)&color))
-			{
-				m_Command->SetState(color);
-			}
-			ImGui::EndPopup();
-		}
+		// the command hash keeps popups unique even when two pickers share a label
+		ImGui::PushID((int)m_Command->GetHash());
+		if (Theme::ColorSwatch(m_LabelOverride.value_or(m_Command->GetLabel()).c_str(), (float*)&color))
+			m_Command->SetState(color);
+		ImGui::PopID();
 	}
 }

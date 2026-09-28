@@ -16,9 +16,9 @@
 
 namespace YimMenu::Features
 {
-    static std::vector<int> npc_index;
+    static AttackWaves::WaveRunner npc_runner; // the looped "Npc Attack" waves
+    static std::vector<int>& npc_index = npc_runner.m_Attackers;
     static std::vector<int> npc_manual_index;
-    static int npc_spawn_cooldown = 0;
     static std::chrono::steady_clock::time_point s_last_spawn_time = std::chrono::steady_clock::time_point{};
 
     namespace NpcAttackOptions
@@ -276,7 +276,7 @@ namespace YimMenu::Features
         void ClearAllNow()
         {
             AttackWaves::Cleanup(npc_manual_index, true);
-            AttackWaves::Cleanup(npc_index, true);
+            npc_runner.Clear();
             Notifications::Show("Npc Attack", "Cleared all spawned NPCs.", NotificationType::Info);
         }
     }
@@ -287,62 +287,28 @@ namespace YimMenu::Features
 
         void OnTick() override
         {
-            Player target_player = Players::GetSelected();
-            Ped player_ped = target_player.GetPed();
+            AttackWaves::WaveOptions options{};
+            options.lasso = NpcAttackOptions::ConfiguredLasso();
 
-            if (!player_ped.IsValid() || player_ped.GetHealth() <= 0)
-            {
-                AttackWaves::Cleanup(npc_index);
-                return;
-            }
+            npc_runner.Tick(options, [](int target, AttackWaves::WaveRunner& runner) {
+                AttackWaves::Config config = NpcAttackOptions::BuildConfig();
+                if (config.models.empty() || !config.models[0] || !*config.models[0])
+                {
+                    Notifications::Show("Npc Attack", "Unknown ped model, please check the model name.", NotificationType::Error);
+                    return 0;
+                }
 
-            if (!npc_index.empty())
-            {
-                AttackWaves::Cleanup(npc_index);
-                return;
-            }
+                // singles and waves share one networked budget
+                AttackWaves::Cleanup(npc_manual_index);
+                config.count = std::min(config.count, AttackWaves::kMaxLiveAttackers - (int)npc_manual_index.size());
+                if (config.count <= 0)
+                    return 0;
 
-            if (npc_spawn_cooldown > 0)
-            {
-                --npc_spawn_cooldown;
-                return;
-            }
-
-            const std::string model_name = NpcAttackOptions::ResolveModelName(NpcAttackOptions::ConfiguredModel());
-            if (model_name.empty())
-            {
-                Notifications::Show("Npc Attack", "Unknown ped model, please check the model name.", NotificationType::Error);
-                npc_spawn_cooldown = 600; // don't spam, try again later (clone spam = disconnect)
-                return;
-            }
-
-            // keep the toggle cheap on the network: too many live attackers
-            // means waiting instead of spawning another wave
-            AttackWaves::Cleanup(npc_index);
-            AttackWaves::Cleanup(npc_manual_index);
-            if (npc_index.size() + npc_manual_index.size() >= (std::size_t)AttackWaves::kMaxLiveAttackers)
-            {
-                npc_spawn_cooldown = 300;
-                return;
-            }
-
-            AttackWaves::Config config = NpcAttackOptions::BuildConfig();
-            if (config.models.empty() || config.models[0] == nullptr)
-            {
-                Notifications::Show("Npc Attack", "Unknown ped model, please check the model name.", NotificationType::Error);
-                npc_spawn_cooldown = 600;
-                return;
-            }
-
-            if (AttackWaves::SpawnWave(player_ped.GetHandle(), config, npc_index) == 0)
-            {
-                Notifications::Show("Npc Attack", "Could not spawn the configured ped.", NotificationType::Error);
-                npc_spawn_cooldown = 600;
-                return;
-            }
-
-            npc_spawn_cooldown = 120; // small gap between waves, avoids clone bursts
-            AttackWaves::Cleanup(npc_index);
+                const int spawned = AttackWaves::SpawnWave(target, config, runner.m_Attackers);
+                if (spawned == 0)
+                    Notifications::Show("Npc Attack", "Could not spawn the configured ped.", NotificationType::Error);
+                return spawned;
+            });
         }
 
         void OnEnable() override
@@ -353,9 +319,9 @@ namespace YimMenu::Features
 
         void OnDisable() override
         {
-            AttackWaves::Cleanup(npc_index, true);
+            npc_runner.Clear();
             AttackWaves::Cleanup(npc_manual_index, true);
-            Notifications::Show("Npc Attack", std::string("Cleared npcs (target: ") + Players::GetSelected().GetName() + ")", NotificationType::Info);
+            Notifications::Show("Npc Attack", "Cleared npcs", NotificationType::Info);
         }
     };
 

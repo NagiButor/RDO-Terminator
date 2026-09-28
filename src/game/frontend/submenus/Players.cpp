@@ -121,9 +121,10 @@ namespace YimMenu::Submenus
     {
         AddCategory(BuildInfoMenu());
         AddCategory(BuildHelpfulMenu());
-        AddCategory(BuildTrollingMenu());
-        AddCategory(BuildToxicMenu());
-        AddCategory(BuildBoomPlusMenu()); // BoomPlus contains the Zombie/Indian Attack UI items
+        AddCategory(BuildTrollingMenu());  // Pranks
+        AddCategory(BuildToxicMenu());     // Griefing
+        AddCategory(BuildBoomPlusMenu());  // Attack
+        AddCategory(BuildNpcAttackMenu()); // NPC Attacks
         AddCategory(BuildKickMenu());
 
         for (auto& category : m_Categories)

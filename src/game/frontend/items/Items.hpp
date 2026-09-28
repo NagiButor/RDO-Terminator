@@ -105,8 +105,6 @@ namespace YimMenu
 	private:
 		ListCommand* m_Command;
 		std::optional<std::string> m_LabelOverride;
-		std::optional<int> m_ItemWidth = std::nullopt;
-		std::optional<std::string> m_SelectedItem = std::nullopt;
 	};
 
 	class ConditionalItem : public UIItem
@@ -114,6 +112,8 @@ namespace YimMenu
 	public:
 		explicit ConditionalItem(joaat_t bool_cmd_id, std::shared_ptr<UIItem> to_draw);
 		void Draw() override;
+		bool IsVisible() const override;
+		bool IsInline() const override;
 
 	private:
 		BoolCommand* m_Condition;
@@ -178,6 +178,10 @@ namespace YimMenu
 	public:
 		explicit ColorCommandItem(joaat_t id, std::optional<std::string> label_override = std::nullopt);
 		void Draw() override;
+		bool IsInline() const override
+		{
+			return true;
+		}
 
 	private:
 		ColorCommand* m_Command;

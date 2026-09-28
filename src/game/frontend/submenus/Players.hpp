@@ -16,5 +16,6 @@ namespace YimMenu::Submenus
     std::shared_ptr<Category> BuildToxicMenu();
     std::shared_ptr<Category> BuildKickMenu();
     std::shared_ptr<Category> BuildBoomPlusMenu();
+    std::shared_ptr<Category> BuildNpcAttackMenu();
     // No need to declare Zombies here since it's included via BoomPlus
 }

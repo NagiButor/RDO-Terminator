@@ -1,5 +1,6 @@
-#include "DummyMesh.hpp"
+﻿#include "DummyMesh.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <d3dcompiler.h>
@@ -88,6 +89,83 @@ float4 main(PSIn i) : SV_TARGET
 			for (int r = 0; r < 4; ++r)
 				for (int c = 0; c < 4; ++c)
 					out[r * 4 + c] = a[r * 4] * b[c] + a[r * 4 + 1] * b[4 + c] + a[r * 4 + 2] * b[8 + c] + a[r * 4 + 3] * b[12 + c];
+		}
+
+		void Identity(float m[16])
+		{
+			for (int i = 0; i < 16; ++i)
+				m[i] = (i % 5 == 0) ? 1.f : 0.f;
+		}
+
+		// Node local transform in row-vector form (p' = p * M). A glTF matrix is
+		// column-major for column vectors, which read row-major is exactly that.
+		void NodeLocal(const nlohmann::json& node, float out[16])
+		{
+			if (node.contains("matrix"))
+			{
+				for (int i = 0; i < 16; ++i)
+					out[i] = node["matrix"][i].get<float>();
+				return;
+			}
+
+			float t[3] = {0.f, 0.f, 0.f}, q[4] = {0.f, 0.f, 0.f, 1.f}, sc[3] = {1.f, 1.f, 1.f};
+			if (node.contains("translation"))
+				for (int i = 0; i < 3; ++i)
+					t[i] = node["translation"][i].get<float>();
+			if (node.contains("rotation"))
+				for (int i = 0; i < 4; ++i)
+					q[i] = node["rotation"][i].get<float>();
+			if (node.contains("scale"))
+				for (int i = 0; i < 3; ++i)
+					sc[i] = node["scale"][i].get<float>();
+
+			const float x = q[0], y = q[1], z = q[2], w = q[3];
+			// rows = rotated basis vectors (transpose of the column-vector rotation)
+			const float r[9] = {
+			    1 - 2 * (y * y + z * z), 2 * (x * y + z * w), 2 * (x * z - y * w),
+			    2 * (x * y - z * w), 1 - 2 * (x * x + z * z), 2 * (y * z + x * w),
+			    2 * (x * z + y * w), 2 * (y * z - x * w), 1 - 2 * (x * x + y * y),
+			};
+			for (int row = 0; row < 3; ++row)
+			{
+				for (int col = 0; col < 3; ++col)
+					out[row * 4 + col] = r[row * 3 + col] * sc[row];
+				out[row * 4 + 3] = 0.f;
+			}
+			out[12] = t[0];
+			out[13] = t[1];
+			out[14] = t[2];
+			out[15] = 1.f;
+		}
+
+		// Accumulated transform of the first node that references `meshIndex`
+		// (Sketchfab exports hide an up-axis flip and a unit scale in there).
+		void MeshWorldTransform(const nlohmann::json& gltf, size_t meshIndex, float out[16])
+		{
+			Identity(out);
+			if (!gltf.contains("nodes"))
+				return;
+			const auto& nodes = gltf["nodes"];
+
+			std::vector<int> parent(nodes.size(), -1);
+			int meshNode = -1;
+			for (size_t i = 0; i < nodes.size(); ++i)
+			{
+				if (nodes[i].contains("children"))
+					for (const auto& c : nodes[i]["children"])
+						if (c.get<size_t>() < nodes.size())
+							parent[c.get<size_t>()] = (int)i;
+				if (meshNode < 0 && nodes[i].contains("mesh") && nodes[i]["mesh"].get<size_t>() == meshIndex)
+					meshNode = (int)i;
+			}
+
+			for (int n = meshNode, guard = 0; n >= 0 && guard < 64; n = parent[n], ++guard)
+			{
+				float local[16], tmp[16];
+				NodeLocal(nodes[n], local);
+				Mul44(out, local, tmp); // child first, then its parents
+				memcpy(out, tmp, sizeof(tmp));
+			}
 		}
 
 		const float* ReadFloats(const nlohmann::json& accessor, const std::vector<std::vector<uint8_t>>& buffers,
@@ -204,13 +282,14 @@ float4 main(PSIn i) : SV_TARGET
 		if (FAILED(device->CreateSamplerState(&samp, &m_Sampler)))
 			return false;
 
+		// no culling: the mock camera basis is mirrored relative to glTF, which flips the winding
 		D3D11_RASTERIZER_DESC rs{};
-		rs.FillMode = D3D11_FILL_SOLID;
-		rs.CullMode = D3D11_CULL_BACK;
+		rs.FillMode        = D3D11_FILL_SOLID;
+		rs.CullMode        = D3D11_CULL_NONE;
+		rs.DepthClipEnable = TRUE;
 		if (FAILED(device->CreateRasterizerState(&rs, &m_RsSolid)))
 			return false;
 		rs.FillMode = D3D11_FILL_WIREFRAME;
-		rs.CullMode = D3D11_CULL_NONE;
 		if (FAILED(device->CreateRasterizerState(&rs, &m_RsWire)))
 			return false;
 		return true;
@@ -280,21 +359,57 @@ float4 main(PSIn i) : SV_TARGET
 		if (idxType != 5123 && idxType != 5125)
 			return false;
 
-		// glTF Y-up centimeters -> world Z-up meters, feet on z=0, facing +Y
+		// node hierarchy -> glTF scene space (Y-up), then Y-up -> world Z-up: (x, y, z) -> (x, -z, y).
+		// This file's raw vertices are upside down; only the node matrices make it stand.
+		float nodeXf[16];
+		MeshWorldTransform(gltf, 0, nodeXf);
+
 		std::vector<GltfVertex> verts;
 		verts.reserve(vtxCount);
+		float minX = 1e30f, maxX = -1e30f, minY = 1e30f, maxY = -1e30f, minZ = 1e30f, maxZ = -1e30f;
 		for (size_t i = 0; i < vtxCount; ++i)
 		{
+			const float* p = pos + i * 3;
+			const float* n = nrm + i * 3;
+			const float sx = p[0] * nodeXf[0] + p[1] * nodeXf[4] + p[2] * nodeXf[8] + nodeXf[12];
+			const float sy = p[0] * nodeXf[1] + p[1] * nodeXf[5] + p[2] * nodeXf[9] + nodeXf[13];
+			const float sz = p[0] * nodeXf[2] + p[1] * nodeXf[6] + p[2] * nodeXf[10] + nodeXf[14];
+			float nx = n[0] * nodeXf[0] + n[1] * nodeXf[4] + n[2] * nodeXf[8];
+			float ny = n[0] * nodeXf[1] + n[1] * nodeXf[5] + n[2] * nodeXf[9];
+			float nz = n[0] * nodeXf[2] + n[1] * nodeXf[6] + n[2] * nodeXf[10];
+			const float nl = std::sqrt(nx * nx + ny * ny + nz * nz);
+			if (nl > 1e-6f)
+			{
+				nx /= nl;
+				ny /= nl;
+				nz /= nl;
+			}
+
 			GltfVertex v{};
-			v.px = pos[i * 3] * 0.01f;
-			v.py = pos[i * 3 + 2] * 0.01f;
-			v.pz = (pos[i * 3 + 1] + 182.f) * 0.01f;
-			v.nx = nrm[i * 3];
-			v.ny = nrm[i * 3 + 2];
-			v.nz = nrm[i * 3 + 1];
+			v.px = sx;
+			v.py = -sz;
+			v.pz = sy;
+			v.nx = nx;
+			v.ny = -nz;
+			v.nz = ny;
 			v.u  = uv[i * 2];
 			v.v  = uv[i * 2 + 1];
+			minX = std::min(minX, v.px), maxX = std::max(maxX, v.px);
+			minY = std::min(minY, v.py), maxY = std::max(maxY, v.py);
+			minZ = std::min(minZ, v.pz), maxZ = std::max(maxZ, v.pz);
 			verts.push_back(v);
+		}
+
+		// feet on z=0, centered on the actor, normalized to the mock skeleton's height
+		constexpr float kHeight = 1.82f;
+		const float height      = maxZ - minZ;
+		const float k           = height > 1e-4f ? kHeight / height : 1.f;
+		const float cx = (minX + maxX) * 0.5f, cy = (minY + maxY) * 0.5f;
+		for (auto& v : verts)
+		{
+			v.px = (v.px - cx) * k;
+			v.py = (v.py - cy) * k;
+			v.pz = (v.pz - minZ) * k;
 		}
 
 		std::vector<uint32_t> indices;

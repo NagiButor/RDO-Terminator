@@ -4,5 +4,6 @@
 
 namespace YimMenu::Submenus
 {
-    std::shared_ptr<Category> BuildBoomPlusMenu();
+    std::shared_ptr<Category> BuildBoomPlusMenu();  // "Attack"
+    std::shared_ptr<Category> BuildNpcAttackMenu(); // "NPC Attacks"
 }

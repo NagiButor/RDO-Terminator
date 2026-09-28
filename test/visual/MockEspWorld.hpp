@@ -3,6 +3,7 @@
 #include "game/frontend/esp/EspWorld.hpp"
 
 #include <string>
+#include <vector>
 
 namespace YimMenu
 {
@@ -30,8 +31,13 @@ namespace YimMenu
 		bool m_Occluded = false; // simulates "behind a wall" for the visibility check
 		bool m_ShowAsPlayer = true;
 		bool m_Walking      = false;
+		bool m_Animal       = false; // no skeleton, box falls back to the torso anchor
 		float m_WalkPhase   = 0.f;
 		std::string m_Name  = "Test Subject";
+		std::string m_Model = "MOCK_HUMAN";
+		unsigned m_Hash     = 0x1A2B3C4D;
+		int m_NetId         = 0;     // 0 = not networked
+		std::string m_Script = "mock_script";
 
 		bool IsValid() const override
 		{
@@ -43,7 +49,7 @@ namespace YimMenu
 		}
 		bool IsAnimal() const override
 		{
-			return false;
+			return m_Animal;
 		}
 		bool IsHorse() const override
 		{
@@ -61,10 +67,8 @@ namespace YimMenu
 		{
 			return m_Name;
 		}
-		std::string GetInfo() const override
-		{
-			return "MOCK_HUMAN (0x1A2B3C4D) mock_script ";
-		}
+		// same toggles and '\n'-separated layout as RdrPedActor::GetInfo
+		std::string GetInfo() const override;
 		float GetDistance() const override;
 		int GetHealth() const override
 		{
@@ -90,7 +94,8 @@ namespace YimMenu
 	class MockEspWorld : public IEspWorld
 	{
 	public:
-		MockActor m_Actor;
+		MockActor m_Actor;                // the one tuned from the ESP Lab panel
+		std::vector<MockActor> m_Crowd;   // extra actors for layering / overlap checks
 		rage::fvector3 m_Self{0.f, 0.f, 0.f};
 		MockCamera m_Camera;
 
@@ -112,6 +117,7 @@ namespace YimMenu
 		void ComputeMatrices(float outView[16], float outProj[16]) const;
 
 		void Update(float dt);
+		void SpawnCrowd();
 		ImVec2 ProjectHead() const;
 	};
 }

@@ -13,6 +13,7 @@
 #include "game/backend/NativeHooks.hpp"
 #include "game/backend/SavedLocations.hpp"
 #include "game/features/Features.hpp"
+#include "game/features/players/toxic/FireNova.hpp"
 #include "game/frontend/GUI.hpp"
 #include "game/pointers/Pointers.hpp"
 
@@ -58,6 +59,7 @@ namespace YimMenu
 		ScriptMgr::AddScript(std::make_unique<Script>(&BlockControlsForUI));
 		ScriptMgr::AddScript(std::make_unique<Script>(&ContextMenuTick));
 		ScriptMgr::AddScript(std::make_unique<Script>(&MapEditor::Update));
+		ScriptMgr::AddScript(std::make_unique<Script>(&Features::MeteorDirector));
 
 		Notifications::Show("RDO Terminator", "Loaded succesfully", NotificationType::Success);
 

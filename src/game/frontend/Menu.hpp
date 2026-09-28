@@ -4,6 +4,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 #include "imgui.h"
 
@@ -16,14 +17,22 @@ namespace YimMenu::Menu
 	extern void SetupStyle();
 	extern void SetupFonts(const std::string& iniPath = {});
 
+	// Quick action shown as a pill in the header (e.g. "God Mode").
+	struct ShellAction
+	{
+		std::string m_Label;
+		std::function<bool()> m_IsActive; // optional: pill is filled while true
+		std::function<void()> m_OnClick;  // runs through ShellContext::m_PushTask when set
+	};
+
 	// Dependencies the menu shell needs from its host (game or visual test).
 	// Keeps MenuShell.cpp free of Renderer/GUI/MapEditor/FiberPool includes.
 	struct ShellContext
 	{
-		bool m_IsOpen = false;
-		ImTextureID m_Logo = 0;
-		std::function<bool()> m_IsGodMode;
-		std::function<void()> m_ToggleGodMode;
+		bool m_IsOpen      = false;
+		ImTextureID m_Logo = 0; // optional; a vector emblem is drawn when 0
+		std::vector<ShellAction> m_Actions;
+		std::function<void()> m_OnClose; // header X button; hidden when empty
 		std::function<void(std::function<void()>)> m_PushTask;
 		YimMenu::Submenus::Settings* m_Settings = nullptr;
 	};

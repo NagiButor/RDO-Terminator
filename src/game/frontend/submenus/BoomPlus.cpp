@@ -38,8 +38,18 @@ namespace YimMenu::Submenus {
         }
     }
 
+    // "Attack": direct damage to the player - explosions, lightning, melee, bolas
     std::shared_ptr<Category> BuildBoomPlusMenu() {
-        auto menu = std::make_shared<Category>("BoomPlus");
+        auto menu = std::make_shared<Category>("Attack");
+
+        auto combat = std::make_shared<Group>("Combat");
+        combat->AddItem(std::make_shared<PlayerCommandItem>("kill"_J));
+        combat->AddItem(std::make_shared<PlayerCommandItem>("explode"_J));
+        combat->AddItem(std::make_shared<PlayerCommandItem>("beatdown"_J, "Beatdown"));
+        combat->AddItem(std::make_shared<PlayerCommandItem>("beatdown2"_J, "Beat Down 2"));
+        combat->AddItem(std::make_shared<PlayerCommandItem>("defensive"_J));
+        combat->AddItem(std::make_shared<PlayerCommandItem>("offensive"_J));
+        combat->AddItem(std::make_shared<PlayerCommandItem>("remotebolas"_J));
 
         auto explosions = std::make_shared<Group>("Explosions", 5);
         explosions->AddItem(std::make_shared<PlayerCommandItem>("firework"_J, "FireWorks"));
@@ -56,35 +66,48 @@ namespace YimMenu::Submenus {
         explosions->AddItem(std::make_shared<PlayerCommandItem>("green_splash_small"_J, "Stinky"));
         explosions->AddItem(std::make_shared<PlayerCommandItem>("glass_smashing_sound_toxic_gas_cloud"_J, "Breath it in"));
         explosions->AddItem(std::make_shared<PlayerCommandItem>("big_geyser"_J, "The Enema"));
-        explosions->AddItem(std::make_shared<PlayerCommandItem>("kill"_J));
-        explosions->AddItem(std::make_shared<PlayerCommandItem>("explode"_J));
         explosions->AddItem(std::make_shared<PlayerCommandItem>("lightning"_J));
         explosions->AddItem(std::make_shared<PlayerCommandItem>("firenova"_J, "Fire Nova (25m)"));
         explosions->AddItem(std::make_shared<PlayerCommandItem>("firerain"_J, "Meteor Rain (25m)"));
 
-        auto plus = std::make_shared<Group>("Plus");
-        plus->AddItem(std::make_shared<PlayerCommandItem>("beatdown"_J, "Beatdown"));
-        plus->AddItem(std::make_shared<PlayerCommandItem>("beatdown2"_J, "Beat Down 2"));
-        plus->AddItem(std::make_shared<PlayerCommandItem>("removeweapons"_J, "Remove Weapons"));
-        plus->AddItem(std::make_shared<PlayerCommandItem>("rideemcowboy"_J, "Rideem Cowboy"));
-        plus->AddItem(std::make_shared<PlayerCommandItem>("spankdatass"_J, "Spank Dat Ass"));
+        menu->AddItem(combat);
+        menu->AddItem(explosions);
 
-        // Insert Poodle Attack button after "Spank Dat Ass"
-        plus->AddItem(std::make_shared<PlayerCommandItem>("poodleattack"_J, "Poodle Attack"));
-        plus->AddItem(std::make_shared<PlayerCommandItem>("buckoff"_J, "Buck Off Horse"));
+        // Real lightning bolt: flash + thunder + damage at a random point around the selected player
+        auto lightning = std::make_shared<Group>("Lightning (config)", 1);
+        lightning->AddItem(std::make_shared<ImGuiItem>([] {
+            ImGui::SliderFloat("Distance", &Features::LightningOptions::StrikeDistance(), 0.f, 150.f, "%.0f m");
 
-        plus->AddItem(std::make_shared<BoolCommandItem>("indianattack"_J));
-        plus->AddItem(std::make_shared<BoolCommandItem>("indianknifeattack"_J));
-        plus->AddItem(std::make_shared<BoolCommandItem>("armyattack"_J));
-        plus->AddItem(std::make_shared<BoolCommandItem>("policeattack"_J));
-        plus->AddItem(std::make_shared<BoolCommandItem>("wolfattack"_J));
-        plus->AddItem(std::make_shared<BoolCommandItem>("npcattack"_J));
-        plus->AddItem(std::make_shared<BoolCommandItem>("cavalryattack"_J, "Cavalry Attack"));
-        plus->AddItem(std::make_shared<BoolCommandItem>("maximwagonattack"_J, "Maxim Wagon"));
-        plus->AddItem(std::make_shared<BoolCommandItem>("policewagonattack"_J, "Police Gatling Wagon"));
-        plus->AddItem(std::make_shared<BoolCommandItem>("zombieattack"_J, "Zombie Attack"));
-        //plus->AddItem(std::make_shared<BoolCommandItem>("zombieslogging"_J));
-        plus->AddItem(std::make_shared<BoolCommandItem>("hardmode"_J));
+            if (ImGui::Button("Strike Lightning", ImVec2(-1, 0)))
+                FiberPool::Push([] {
+                    Features::LightningOptions::StrikeNow();
+                });
+
+            ImGui::TextDisabled("0 m = right on target. Also works via the Lightning button above.");
+        }));
+        menu->AddItem(lightning);
+
+        return menu;
+    }
+
+    // "NPC Attacks": spawns hostile NPCs / animals / wagons that hunt the player
+    std::shared_ptr<Category> BuildNpcAttackMenu() {
+        auto menu = std::make_shared<Category>("NPC Attacks");
+
+        auto attackers = std::make_shared<Group>("Attackers");
+        attackers->AddItem(std::make_shared<PlayerCommandItem>("poodleattack"_J, "Poodle Attack"));
+        attackers->AddItem(std::make_shared<BoolCommandItem>("indianattack"_J));
+        attackers->AddItem(std::make_shared<BoolCommandItem>("indianknifeattack"_J));
+        attackers->AddItem(std::make_shared<BoolCommandItem>("armyattack"_J));
+        attackers->AddItem(std::make_shared<BoolCommandItem>("policeattack"_J));
+        attackers->AddItem(std::make_shared<BoolCommandItem>("wolfattack"_J));
+        attackers->AddItem(std::make_shared<BoolCommandItem>("zombieattack"_J, "Zombie Attack"));
+        attackers->AddItem(std::make_shared<BoolCommandItem>("cavalryattack"_J, "Cavalry Attack"));
+        attackers->AddItem(std::make_shared<BoolCommandItem>("maximwagonattack"_J, "Maxim Wagon"));
+        attackers->AddItem(std::make_shared<BoolCommandItem>("policewagonattack"_J, "Police Gatling Wagon"));
+        attackers->AddItem(std::make_shared<BoolCommandItem>("npcattack"_J));
+        //attackers->AddItem(std::make_shared<BoolCommandItem>("zombieslogging"_J));
+        attackers->AddItem(std::make_shared<BoolCommandItem>("hardmode"_J));
 
         // Configuration for the "Npc Attack" toggle: pick the ped/animal, the amount and where it spawns
         auto npc_attack = std::make_shared<Group>("Npc Attack (config)", 1);
@@ -211,26 +234,10 @@ namespace YimMenu::Submenus {
             ImGui::TextDisabled("Bear = A_C_Bear_01 | Cougar = A_C_Cougar_01 | Wolf = A_C_Wolf");
             ImGui::TextDisabled("One click = one NPC (2s cooldown, max 5 manual, oldest auto-removed).");
             ImGui::TextDisabled("Typing in RU layout auto-converts to EN. Leave weapon empty for claws / fists.");
-            ImGui::TextDisabled("Turn on \"Npc Attack\" in the Plus tab to use these settings.");
+            ImGui::TextDisabled("Turn on \"Npc Attack\" in the Attackers group to use these settings.");
         }));
 
-        menu->AddItem(explosions);
-
-        // Real lightning bolt: flash + thunder + damage at a random point around the selected player
-        auto lightning = std::make_shared<Group>("Lightning (config)", 1);
-        lightning->AddItem(std::make_shared<ImGuiItem>([] {
-            ImGui::SliderFloat("Distance", &Features::LightningOptions::StrikeDistance(), 0.f, 150.f, "%.0f m");
-
-            if (ImGui::Button("Strike Lightning", ImVec2(-1, 0)))
-                FiberPool::Push([] {
-                    Features::LightningOptions::StrikeNow();
-                });
-
-            ImGui::TextDisabled("0 m = right on target. Also works via the Lightning button above.");
-        }));
-        menu->AddItem(lightning);
-
-        menu->AddItem(plus);
+        menu->AddItem(attackers);
         menu->AddItem(npc_attack);
 
         return menu;

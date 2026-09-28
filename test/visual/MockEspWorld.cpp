@@ -1,9 +1,19 @@
 #include "MockEspWorld.hpp"
 
+#include "core/commands/BoolCommand.hpp"
+
 #include <cmath>
+#include <cstdio>
 
 namespace YimMenu
 {
+	namespace Features
+	{
+		extern BoolCommand _ESPModelPeds;
+		extern BoolCommand _ESPNetworkInfoPeds;
+		extern BoolCommand _ESPScriptInfoPeds;
+	}
+
 	namespace
 	{
 		constexpr float kPi = 3.14159265358979323846f;
@@ -36,6 +46,25 @@ namespace YimMenu
 		}
 	}
 
+	std::string MockActor::GetInfo() const
+	{
+		std::string info;
+		char buf[96];
+		if (Features::_ESPModelPeds.GetState())
+		{
+			snprintf(buf, sizeof(buf), "%s (0x%08X)\n", m_Model.c_str(), m_Hash);
+			info += buf;
+		}
+		if (Features::_ESPNetworkInfoPeds.GetState() && m_NetId)
+		{
+			snprintf(buf, sizeof(buf), "net %d | Host\n", m_NetId);
+			info += buf;
+		}
+		if (Features::_ESPScriptInfoPeds.GetState() && !m_Script.empty())
+			info += m_Script + "\n";
+		return info;
+	}
+
 	float MockActor::GetDistance() const
 	{
 		const float dx = m_Pos.x;
@@ -47,7 +76,9 @@ namespace YimMenu
 	rage::fvector3 MockActor::GetBone(int boneId) const
 	{
 		const float swing = m_Walking ? std::sin(m_WalkPhase) * 0.25f : 0.f;
-		const rage::fvector3 off = BoneOffset(boneId, swing);
+		rage::fvector3 off = BoneOffset(boneId, swing);
+		if (m_Animal) // four-legged stand-in: same bones, squashed to shoulder height
+			off = {off.x * 0.8f, off.y, off.z * 0.5f};
 		return rage::fvector3{m_Pos.x + off.x, m_Pos.y + off.y, m_Pos.z + off.z};
 	}
 
@@ -95,12 +126,59 @@ namespace YimMenu
 	{
 		if (m_Actor.m_ShowAsPlayer)
 			callback(m_Actor);
+		for (auto& actor : m_Crowd)
+			if (actor.m_ShowAsPlayer)
+				callback(actor);
 	}
 
 	void MockEspWorld::ForEachPed(const std::function<void(IEspActor&)>& callback)
 	{
 		if (!m_Actor.m_ShowAsPlayer)
 			callback(m_Actor);
+		for (auto& actor : m_Crowd)
+			if (!actor.m_ShowAsPlayer)
+				callback(actor);
+	}
+
+	void MockEspWorld::SpawnCrowd()
+	{
+		struct Spec
+		{
+			float x, y;
+			bool player, walking, animal;
+			int hp;
+			const char* name;
+			const char* model;
+			unsigned hash;
+			int netId;
+			const char* script;
+		};
+		static const Spec kSpecs[] = {
+		    {-4.5f, 18.f, true, true, false, 200, "Arthur_M", "MP_MALE", 0xF5C1611E, 0, ""},
+		    {5.5f, 34.f, true, false, false, 70, "sadie.adler", "MP_FEMALE", 0x0D7114C9, 0, ""},
+		    {9.f, 16.f, false, true, false, 150, "", "A_M_M_VALTOWNFOLK_01", 0x0F6DA2A1, 412, "net_ambient_peds"},
+		    {-10.f, 45.f, false, false, false, 30, "", "S_M_M_VALDEPUTY_01", 0x9D71E3F0, 0, "mission_controller"},
+		    {-2.f, 70.f, true, false, false, 200, "far_away_rider", "MP_MALE", 0xF5C1611E, 0, ""},
+		    {3.f, 12.f, false, false, true, 90, "", "A_C_WOLF", 0x9BD6E7F5, 0, ""},
+		};
+
+		m_Crowd.clear();
+		for (const auto& spec : kSpecs)
+		{
+			MockActor a;
+			a.m_Pos          = {spec.x, spec.y, 0.f};
+			a.m_ShowAsPlayer = spec.player;
+			a.m_Walking      = spec.walking;
+			a.m_Animal       = spec.animal;
+			a.m_Health       = spec.hp;
+			a.m_Name         = spec.name;
+			a.m_Model        = spec.model;
+			a.m_Hash         = spec.hash;
+			a.m_NetId        = spec.netId;
+			a.m_Script       = spec.script;
+			a.m_WalkPhase    = spec.x; // desync the walk cycles
+			m_Crowd.push_back(std::move(a));
+		}
 	}
 
 	ImVec2 MockEspWorld::Project(const rage::fvector3& world) const
@@ -215,6 +293,9 @@ namespace YimMenu
 	{
 		if (m_Actor.m_Walking && !m_Actor.IsDead())
 			m_Actor.m_WalkPhase += dt * 6.f;
+		for (auto& actor : m_Crowd)
+			if (actor.m_Walking && !actor.IsDead())
+				actor.m_WalkPhase += dt * 6.f;
 	}
 
 	ImVec2 MockEspWorld::ProjectHead() const

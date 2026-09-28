@@ -48,19 +48,26 @@ namespace YimMenu
 
 		Renderer::AddRendererCallBack(
 			[&] {
-				Menu::ShellContext ctx{};
+				static Menu::ShellContext ctx = [] {
+					Menu::ShellContext c{};
+					c.m_Actions.push_back({"God Mode",
+					    [] {
+						    return MapEditor::IsOpen();
+					    },
+					    [] {
+						    MapEditor::Toggle();
+					    }});
+					c.m_OnClose = [] {
+						GUI::SetOpen(false);
+					};
+					c.m_PushTask = [](std::function<void()> task) {
+						FiberPool::Push(std::move(task));
+					};
+					c.m_Settings = &g_SettingsInstance;
+					return c;
+				}();
 				ctx.m_IsOpen = GUI::IsOpen();
 				ctx.m_Logo   = Renderer::GetLogoTexture();
-				ctx.m_IsGodMode = [] {
-					return MapEditor::IsOpen();
-				};
-				ctx.m_ToggleGodMode = [] {
-					MapEditor::Toggle();
-				};
-				ctx.m_PushTask = [](std::function<void()> task) {
-					FiberPool::Push(std::move(task));
-				};
-				ctx.m_Settings = &g_SettingsInstance;
 				Menu::DrawShell(ctx);
 			},
 			-1);
