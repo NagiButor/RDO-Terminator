@@ -65,7 +65,8 @@ namespace YimMenu
 	{
         // THIS IS THE FIX: The logic is now inverted to match your request.
         // Get the state of the toggle command.
-        const auto use_insert_key = Commands::GetCommand<BoolCommand>("togglemenukey"_J)->GetState();
+        const auto toggle_cmd   = Commands::GetCommand<BoolCommand>("togglemenukey"_J);
+        const auto use_insert_key = toggle_cmd ? toggle_cmd->GetState() : false;
         // If ticked (true), use Insert. If unticked (false), use F5.
         const auto key_to_check = use_insert_key ? VK_INSERT : VK_F5;
 

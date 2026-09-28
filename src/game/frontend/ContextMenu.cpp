@@ -159,7 +159,7 @@ namespace YimMenu
 	{
 		// Make compatible with ESP
 		static auto esp = Commands::GetCommand<BoolCommand>("esp"_J);
-		if (esp->GetState())
+		if (esp && esp->GetState())
 			screenPos.y += 20;
 
 		if (position > 0)

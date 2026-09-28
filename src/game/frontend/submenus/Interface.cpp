@@ -1,11 +1,14 @@
 #include "Interface.hpp"
 
+#include "core/commands/BoolCommand.hpp"
 #include "core/commands/Commands.hpp"
 #include "core/commands/HotkeySystem.hpp"
 #include "game/frontend/items/Items.hpp"
 
 namespace YimMenu::Submenus
 {
+    static BoolCommand g_UseInsertForMenuToggle("togglemenukey", "Menu Toggle Key", "Un-Ticked = F5, Ticked = Insert", false);
+
     static void DrawHotkeySettings()
     {
         ImGui::BulletText("Hold the command name clicked to change its hotkey");
