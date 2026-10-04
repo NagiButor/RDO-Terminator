@@ -2,3 +2,5 @@ build/
 .vs
 out/
 .kilo/
+loader/bin/
+loader/obj/

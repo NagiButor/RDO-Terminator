@@ -1,0 +1,5 @@
+#include "resource.h"
+
+IDI_APPICON ICON "res/icon.ico"
+IDR_HACKDLL RCDATA "res/RDOTerminator.dll"
+IDR_SUCCESS WAVE "res/success.wav"
