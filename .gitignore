@@ -4,3 +4,4 @@ out/
 .kilo/
 loader/bin/
 loader/obj/
+loader/res/*.dll
